@@ -1,0 +1,164 @@
+
+Hi Team,
+
+a) How did you find out about the charges?
+I found out about the charges when I reviewed my billing dashboard and noticed unexpected costs. I was surprised to see usage charges that I didn’t anticipate.
+
+
+b) Do you consider you have enough tools and knowledge to avoid this from happening in the future?
+Yes. After seeing these charges, I spent time reviewing AWS billing alerts, budgets, and documentation. I believe I now have enough tools and understanding to monitor usage closely and avoid such unexpected charges going forward.
+
+
+c) How long were you actively using these services?
+I did not intentionally use the services for long. It appears they remained running without my realizing it, which caused the charges. Once I noticed, I took steps to stop them.
+
+
+d) How did this error happen (please be specific of the reason why this feature was launched even though there was unawareness of the pricing and the configuration required):
+This happened because I was testing and exploring AWS features without fully understanding the cost implications. I mistakenly launched resources or services for experimentation but did not realize they would continue to incur charges in the background. I failed to terminate them properly, which led to ongoing costs. It was an oversight due to my lack of experience with the billing model at that time.
+
+
+e) Why did it take this long to engage us?
+It took me time to understand the source of the charges and to verify that I couldn’t resolve the billing issue on my own. Once I confirmed the charges were unintended and could not be reversed through normal means, I contacted AWS Support for help.
+
+
+f) Do you agree to review the pricing structure for resources that you intend to use before launching them?
+Yes, absolutely. I understand the importance of reviewing the pricing structure in advance. I will make sure to carefully review all pricing details and configurations before launching any future AWS resources.
+
+Regards,
+
+Richard Xavier 
+Show quoted text
+Greetings from Amazon Web Services.
+
+We're sorry. You've written to an address that cannot accept incoming
+e-mail.
+
+If you need to contact us, please visit http://www.aws.amazon.com/contact-us .
+
+Thank you for your business.
+
+Best regards,
+Amazon Web Services
+http://www.aws.amazon.com/
+
+P.S. You received this message because Amazon.com received the following
+message:
+
+Date: Mon, 7 Jul 2025 22:46:43 -0400
+From: Richard <richardvcas@gmail.com>
+To: Amazon Web Services <no-reply-aws@amazon.com>
+Subject: Re: [CASE 175164752300494] Request for Waiver ? Invoice 2229346217 (First-Time Unintentional Usage)
+
+Hi Team,
+
+*a) How did you find out about the charges?*
+
+I found out about the charges when I reviewed my billing dashboard and
+noticed unexpected costs. I was surprised to see usage charges that I
+didnt anticipate.
+
+*b) Do you consider you have enough tools and knowledge to avoid this from
+happening in the future?*
+
+Yes. After seeing these charges, I spent time reviewing AWS billing alerts,
+budgets, and documentation. I believe I now have enough tools and
+understanding to monitor usage closely and avoid such unexpected charges
+going forward.
+
+*c) How long were you actively using these services?*
+
+I did not intentionally use the services for long. It appears they remained
+running without my realizing it, which caused the charges. Once I noticed,
+I took steps to stop them.
+
+*d) How did this error happen (please be specific of the reason why this
+
+feature was launched even though there was unawareness of the pricing and
+the configuration required):*
+
+This happened because I was testing and exploring AWS features without
+fully understanding the cost implications. I mistakenly launched resources
+or services for experimentation but did not realize they would continue to
+incur charges in the background. I failed to terminate them properly, which
+led to ongoing costs. It was an oversight due to my lack of experience with
+the billing model at that time.
+
+*e) Why did it take this long to engage us?*
+
+It took me time to understand the source of the charges and to verify that
+I couldnt resolve the billing issue on my own. Once I confirmed the
+
+charges were unintended and could not be reversed through normal means, I
+contacted AWS Support for help.
+
+*f) Do you agree to review the pricing structure for resources that you
+intend to use before launching them?*
+
+Yes, absolutely. I understand the importance of reviewing the pricing
+structure in advance. I will make sure to carefully review all pricing
+details and configurations before launching any future AWS resources.
+
+Regards,
+
+Richard Xavier
+
+On Mon, Jul 7, 2025 at 5:30AM Amazon Web Services <no-reply-aws@amazon.com>
+Show quoted text
+> <https://kqhwb7ft.r.us-east-1.awstrack.me/L0/https:%2F%2Fconsole.aws.amazon.com%2Fsupport%2Fhome%23%2Fcase%2F%3FdisplayId=175164752300494%26language=en/1/01000197e438f621-7f6b05dd-0c88-43db-aecc-3f659e0d273b-000000/eCSp6t2E6W7DZQdFef_I6NTlUQU=433>
+
+>
+> Note, this e-mail was sent from an address that cannot accept incoming
+> e-mails. To respond to this case, please follow the link above to respond
+> from your AWS Support Center.
+>
+> ===============================================================
+>
+> Dont miss messages from AWS Support when you need help! Update your
+> contact information:
+> https://console.aws.amazon.com/billing/home#/account
+> <https://kqhwb7ft.r.us-east-1.awstrack.me/L0/https:%2F%2Fconsole.aws.amazon.com%2Fbilling%2Fhome%23%2Faccount/1/01000197e438f621-7f6b05dd-0c88-43db-aecc-3f659e0d273b-000000/MVnh1v13w8C9eDwIr5z6xL13Vg4=433>
+
+>
+> If you receive an error message when visiting the contact information
+> page, visit:
+> https://repost.aws/knowledge-center/iam-billing-access/
+> <https://kqhwb7ft.r.us-east-1.awstrack.me/L0/https:%2F%2Frepost.aws%2Fknowledge-center%2Fiam-billing-access%2F/1/01000197e438f621-7f6b05dd-0c88-43db-aecc-3f659e0d273b-000000/xwXU1sOyDGsUoyQ4ZAXU0BGty-s=433>
+>
+> AWS Support:
+> https://repost.aws/knowledge-center/
+> <https://kqhwb7ft.r.us-east-1.awstrack.me/L0/https:%2F%2Frepost.aws%2Fknowledge-center%2F/1/01000197e438f621-7f6b05dd-0c88-43db-aecc-3f659e0d273b-000000/EeWWQrq9lyKRDRga15LGkkcKeWQ=433>
+>
+> AWS Documentation:
+> https://docs.aws.amazon.com/
+> <https://kqhwb7ft.r.us-east-1.awstrack.me/L0/https:%2F%2Fdocs.aws.amazon.com%2F/1/01000197e438f621-7f6b05dd-0c88-43db-aecc-3f659e0d273b-000000/RC0NPAnr6KQfglY8LK-Po7Rj0rs=433>
+
+>
+> AWS Cost Management:
+> https://aws.amazon.com/aws-cost-management/
+> <https://kqhwb7ft.r.us-east-1.awstrack.me/L0/https:%2F%2Faws.amazon.com%2Faws-cost-management%2F/1/01000197e438f621-7f6b05dd-0c88-43db-aecc-3f659e0d273b-000000/uHuIQnjKSdJKACY4BmCU2hG6WzU=433>
+>
+> AWS Training:
+> http://aws.amazon.com/training/
+> <http://kqhwb7ft.r.us-east-1.awstrack.me/L0/http:%2F%2Faws.amazon.com%2Ftraining%2F/1/01000197e438f621-7f6b05dd-0c88-43db-aecc-3f659e0d273b-000000/CXTFqbFrtpEEsiTjSyo2ZvKQ8m4=433>
+
+>
+> AWS Managed Services:
+> https://aws.amazon.com/managed-services/
+> <https://kqhwb7ft.r.us-east-1.awstrack.me/L0/https:%2F%2Faws.amazon.com%2Fmanaged-services%2F/1/01000197e438f621-7f6b05dd-0c88-43db-aecc-3f659e0d273b-000000/hdV9ytpGEYN9THCKG27VJesvxPg=433>
+
+>
+> Amazon Web Services, Inc. is a subsidiary of Amazon.com, Inc. Amazon.com
+> is a registered trademark of Amazon.com.
+>
+> This message was produced and distributed by Amazon Web Services, Inc. or
+> its affiliates
+> <https://kqhwb7ft.r.us-east-1.awstrack.me/L0/https:%2F%2Faws.amazon.com%2Flegal%2Fmarketingentities%2F/1/01000197e438f621-7f6b05dd-0c88-43db-aecc-3f659e0d273b-000000/ftqepgBNi5Q1ZYyy-e3q-J4khac=433>
+
+> 410 Terry Ave. North, Seattle, WA 98109.
+>
+>  [2025], Amazon Web Services, Inc. or its affiliates. All rights
+> reserved. Read our Privacy Notice.
+> <https://kqhwb7ft.r.us-east-1.awstrack.me/L0/https:%2F%2Faws.amazon.com%2Fprivacy%2F/1/01000197e438f621-7f6b05dd-0c88-43db-aecc-3f659e0d273b-000000/M0bBCrNGq5HlYB0ZEkSLJ41_0Ig=433>
+>
+>
+
