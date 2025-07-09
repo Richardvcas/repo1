@@ -1,0 +1,78 @@
+import yaml
+import json
+
+user_input_json = """
+{
+    "name": "testvm",
+    "namespace": "default",
+    "running": False,
+    "memory": "1024M",
+    "containerDiskImage": "kubevirt/fedora-cloud-container-disk-demo",
+    "cloudInitUserData": "#cloud-config\\npassword: fedora\\nchpasswd: { expire: False }"
+
+}
+"""
+user_input = json.loads(user_input_json)
+vm_yaml = {
+    "apiVersion": "kubervirt.io/v1",
+    "kind": "VirtualMachine",
+    "metadata": {
+        "name": user_input["name"],
+        "namespace": user_input["namespace"]
+    },
+    "spec": {
+        "running": user_input["running"],
+        "template": {
+            "metadata": {
+                "labels": {
+                    "kubevirt.io/domain": user_input["name"]
+                }
+            },
+            "spec": {
+                "domain": {
+                    "devices": {
+                        "disks": [
+                            {
+                                "name": "containerdisk",
+                                "disk": {
+                                    "bus": "virtio"
+                                }
+                            },
+                            {
+                                "name": "cloudinitdisk",
+                                "disk": {
+                                    "bus": "virtio"
+                                }
+                            }
+                        ]
+                    },
+                    "resources": {
+                        "requests": {
+                            "memory": user_input["memory"]
+                        }
+                    }
+                },
+                "volums": [
+                    {
+                        "name": "containerdisk",
+                        "containerDisk": {
+                            "image": user_input["containerDiskImage"]
+                        }
+                    },
+                    {
+                        "name": "cloudinitdisk",
+                        "cloudInitNoCloud": {
+                            "userData": user_input["cloudInitUserData"]
+                        }
+                    }
+                ]
+            }
+        }
+        }
+}
+with open("generated_vm.yaml","w") as f:
+    yaml.dump(vm_yaml,f,sort_keys=False)
+
+
+
+
