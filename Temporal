@@ -1,0 +1,294 @@
+✅ Excellent! Let’s do one complete, super simple Temporal workflow in Python together.
+
+I’ll give you a step-by-step example you can run on your machine if you have Temporal and the Python SDK installed.
+
+This example will be like “Hello World” for Temporal:
+⭐ It runs a workflow
+⭐ Calls an activity
+⭐ Returns a result
+
+
+---
+
+✅ 1️⃣ Prerequisites
+
+✅ Temporal Server running (e.g. local dev server on localhost:7233)
+✅ Python installed
+✅ Temporal Python SDK installed:
+
+pip install temporalio
+
+
+---
+
+✅ 2️⃣ Project Structure Suggestion
+
+You can use three files in a folder:
+
+temporal_hello/
+  ├── activities.py
+  ├── workflow.py
+  └── worker.py
+
+
+---
+
+✅ 3️⃣ File 1: activities.py
+
+✅ Define the activity function (what you want to do):
+
+from temporalio import activity
+
+@activity.defn
+async def say_hello(name: str) -> str:
+    return f"Hello, {name}!"
+
+
+---
+
+✅ 4️⃣ File 2: workflow.py
+
+✅ Define the workflow itself:
+
+from datetime import timedelta
+from temporalio import workflow
+from activities import say_hello
+
+@workflow.defn
+class HelloWorkflow:
+    @workflow.run
+    async def run(self, name: str) -> str:
+        result = await workflow.execute_activity(
+            say_hello,
+            name,
+            schedule_to_close_timeout=timedelta(seconds=10),
+        )
+        return result
+
+✅ What it does:
+
+Waits for input name.
+
+Calls the say_hello activity with that name.
+
+Returns the result.
+
+
+
+---
+
+✅ 5️⃣ File 3: worker.py
+
+✅ Run the worker to listen for workflows:
+
+import asyncio
+from temporalio.client import Client
+from temporalio.worker import Worker
+from workflow import HelloWorkflow
+from activities import say_hello
+
+async def main():
+    # Connect to Temporal Server
+    client = await Client.connect("localhost:7233")
+
+    # Start a worker to process workflows and activities
+    worker = Worker(
+        client,
+        task_queue="hello-task-queue",
+        workflows=[HelloWorkflow],
+        activities=[say_hello],
+    )
+
+    print("Worker started. Waiting for workflows...")
+    await worker.run()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+✅ What it does:
+
+Connects to Temporal Server.
+
+Registers the workflow and activity.
+
+Waits for jobs on hello-task-queue.
+
+
+
+---
+
+✅ 6️⃣ Run the Worker
+
+✅ In your terminal:
+
+python worker.py
+
+✅ Output:
+
+Worker started. Waiting for workflows...
+
+The worker is ready to process workflows.
+
+
+---
+
+✅ 7️⃣ Trigger the Workflow (Client)
+
+✅ You can also make a client script to start the workflow:
+
+Create start_workflow.py:
+
+import asyncio
+from temporalio.client import Client
+
+async def main():
+    client = await Client.connect("localhost:7233")
+
+    result = await client.execute_workflow(
+        "HelloWorkflow",
+        "World",
+        id="hello-workflow-id",
+        task_queue="hello-task-queue",
+    )
+
+    print("Workflow result:", result)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+✅ Run:
+
+python start_workflow.py
+
+✅ Output:
+
+Workflow result: Hello, World!
+
+
+---
+
+✅ 8️⃣ How it All Works
+
+⭐️ start_workflow.py:
+
+> Connects to Temporal, says: "Please run HelloWorkflow with input 'World'".
+
+
+
+⭐️ Temporal Server:
+
+> Receives request. Queues it on hello-task-queue.
+
+
+
+⭐️ worker.py:
+
+> Worker is listening. Picks up the task. Runs HelloWorkflow.
+
+
+
+⭐️ HelloWorkflow:
+
+> Calls say_hello("World").
+
+
+
+⭐️ say_hello activity:
+
+> Returns "Hello, World!".
+
+
+
+⭐️ Workflow completes:
+
+> Result is sent back to client. Prints Hello, World!.
+
+
+
+
+---
+
+✅ 9️⃣ TL;DR One-Liner
+
+Client starts workflow ➜ Server queues it ➜ Worker runs it ➜ Calls activity ➜ Returns result!
+
+
+---
+
+✅ 🌟 Fully Minimal Example in One File
+
+If you want one single file version (for quick testing), you can use this:
+
+hello_temporal.py:
+
+import asyncio
+from datetime import timedelta
+from temporalio import activity, workflow
+from temporalio.client import Client
+from temporalio.worker import Worker
+
+# Activity
+@activity.defn
+async def say_hello(name: str) -> str:
+    return f"Hello, {name}!"
+
+# Workflow
+@workflow.defn
+class HelloWorkflow:
+    @workflow.run
+    async def run(self, name: str) -> str:
+        result = await workflow.execute_activity(
+            say_hello,
+            name,
+            schedule_to_close_timeout=timedelta(seconds=10),
+        )
+        return result
+
+async def run_worker():
+    client = await Client.connect("localhost:7233")
+    worker = Worker(
+        client,
+        task_queue="hello-task-queue",
+        workflows=[HelloWorkflow],
+        activities=[say_hello],
+    )
+    await worker.run()
+
+async def start_workflow():
+    client = await Client.connect("localhost:7233")
+    result = await client.execute_workflow(
+        "HelloWorkflow",
+        "World",
+        id="hello-workflow-id",
+        task_queue="hello-task-queue",
+    )
+    print("Workflow result:", result)
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "start":
+        asyncio.run(start_workflow())
+    else:
+        asyncio.run(run_worker())
+
+✅ To start worker:
+
+python hello_temporal.py
+
+✅ In a new terminal, start workflow:
+
+python hello_temporal.py start
+
+✅ Output:
+
+Workflow result: Hello, World!
+
+
+---
+
+If you tell me: ✅ Which version you prefer (multi-file or single-file)?
+✅ Which OS you’re on?
+✅ Whether you want the absolute simplest version?
+
+—I’ll help you make it perfectly suited for you!
+
