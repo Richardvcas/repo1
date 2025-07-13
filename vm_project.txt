@@ -150,9 +150,7 @@ def vm_request():
     return jsonify({"status": "accepted", "details": data}), 200
 
 ---------------------------------------------------------------------
-curl -X POST http://localhost:5000/api/vm-request \
-  -H "Content-Type: application/json" \
-  -d '{
+curl -X POST http://localhost:5000/api/vm-request -H "Content-Type: application/json" -d '{
         "vm_name": "vm67",
         "namespace": "testproject1",
         "volume_name": "vol67",
