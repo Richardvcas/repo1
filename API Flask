@@ -41,6 +41,4 @@ if __name__ == "__main__":
 
 JSON check
 
-curl -X POST http://localhost:5000/api/vm-request \
-  -H "Content-Type: application/json" \
-  -d '{"user":"alice","vm_os":"ubuntu","cpu":2,"ram":4}'
+curl -X POST http://localhost:5000/api/vm-request -H "Content-Type: application/json" -d '{"user":"alice","vm_os":"ubuntu","cpu":2,"ram":4}'
