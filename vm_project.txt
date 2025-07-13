@@ -107,6 +107,61 @@ def push_yaml_to_git(yaml_file_path):
     repo.index.add([dest_path])
     repo.index.commit("Automated VM YAML push")
     repo.remote(name="origin").push()
+-------------------------------------------------------
+Update with folder.
+
+import os
+import shutil
+import git
+from .templates import VM_YAML_TEMPLATE
+
+GIT_USERNAME = "I826243"
+GIT_PASSWORD = "ilovecakeandpizza"
+GIT_REPO_URL = f"https://{GIT_USERNAME}:{GIT_PASSWORD}@gitlab.lab.jpmcchase.net/I826243/vm-manifests.git"
+
+LOCAL_YAML_FOLDER = r"C:\Users\V849212\Documents\vm_api_project\data"
+
+def render_vm_yaml(user_input):
+    return VM_YAML_TEMPLATE.format(
+        vm_name=user_input["vm_name"],
+        namespace=user_input["namespace"],
+        volume_name=user_input["volume_name"],
+        image_url=user_input["image_url"],
+        storage_size=user_input["storage_size"],
+        memory=user_input["memory"],
+        cloud_user=user_input["cloud_user"],
+        cloud_password=user_input["cloud_password"]
+    )
+
+def save_yaml_to_file(content, filename):
+    
+    full_path = os.path.join(LOCAL_YAML_FOLDER, filename)
+    with open(full_path, "w") as f:
+        f.write(content)
+    return full_path
+
+def push_yaml_to_git(yaml_file_path):
+    repo_dir = "/tmp/vmrepo"     
+    manifests_dir = "manifests"
+
+    if os.path.exists(repo_dir):
+        shutil.rmtree(repo_dir)
+
+    
+    repo = git.Repo.clone_from(GIT_REPO_URL, repo_dir)
+
+    
+    # Example: C:\Users\V849212\Documents\vm_api_project\data\vm67.yaml
+    local_file_full_path = yaml_file_path
+
+    
+    dest_path = os.path.join(repo_dir, manifests_dir, os.path.basename(local_file_full_path))
+    shutil.copyfile(local_file_full_path, dest_path)
+
+    repo.index.add([dest_path])
+    repo.index.commit("Automated VM YAML push")
+    repo.remote(name="origin").push()
+
 
 ---------------------------------------------
 from flask import Flask, request, jsonify
