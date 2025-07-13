@@ -35,3 +35,12 @@ def vm_request():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
+
+----------------------------------------------------
+
+JSON check
+
+curl -X POST http://localhost:5000/api/vm-request \
+  -H "Content-Type: application/json" \
+  -d '{"user":"alice","vm_os":"ubuntu","cpu":2,"ram":4}'
