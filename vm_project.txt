@@ -1,0 +1,152 @@
+vm_api_project/app.py
+------------------------
+
+from api.routes import app
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
+
+
+-------------------------------------------------
+
+VM_YAML_TEMPLATE = """\
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: {vm_name}
+  namespace: {namespace}
+spec:
+  dataVolumeTemplates:
+    - apiVersion: cdi.kubevirt.io/v1beta1
+      kind: DataVolume
+      metadata:
+        name: {volume_name}
+      spec:
+        source:
+          http:
+            url: '{image_url}'
+        storage:
+          resources:
+            requests:
+              storage: {storage_size}
+  running: true
+  template:
+    spec:
+      architecture: amd64
+      domain:
+        devices:
+          disks:
+            - disk:
+                bus: virtio
+              name: rootdisk
+            - disk:
+                bus: virtio
+              name: cloudinitdisk
+          interfaces:
+            - masquerade: {{}}
+              model: virtio
+              name: default
+        machine:
+          type: pc-q35-rhel9.4.0
+        memory:
+          guest: {memory}
+        resources: {{}}
+      networks:
+        - name: default
+          pod: {{}}
+      volumes:
+        - dataVolume:
+            name: {volume_name}
+          name: rootdisk
+        - cloudInitNoCloud:
+            userData: |-
+              user: {cloud_user}
+              password: {cloud_password}
+              chpasswd: {{ expire: False }}
+          name: cloudinitdisk
+"""
+------------------------------------------------
+import os
+import shutil
+import git
+from .templates import VM_YAML_TEMPLATE
+
+# Fill in your actual repo path
+GIT_USERNAME = "I826243"
+GIT_PASSWORD = "ilovecakeandpizza"
+GIT_REPO_URL = f"https://{GIT_USERNAME}:{GIT_PASSWORD}@gitlab.lab.jpmcchase.net/YOUR_GROUP/YOUR_REPO.git"
+
+def render_vm_yaml(user_input):
+    return VM_YAML_TEMPLATE.format(
+        vm_name=user_input["vm_name"],
+        namespace=user_input["namespace"],
+        volume_name=user_input["volume_name"],
+        image_url=user_input["image_url"],
+        storage_size=user_input["storage_size"],
+        memory=user_input["memory"],
+        cloud_user=user_input["cloud_user"],
+        cloud_password=user_input["cloud_password"]
+    )
+
+def save_yaml_to_file(content, filename):
+    with open(filename, "w") as f:
+        f.write(content)
+
+def push_yaml_to_git(yaml_file_path):
+    repo_dir = "/tmp/vmrepo"
+    manifests_dir = "manifests"
+
+    if os.path.exists(repo_dir):
+        shutil.rmtree(repo_dir)
+
+    repo = git.Repo.clone_from(GIT_REPO_URL, repo_dir)
+
+    dest_path = os.path.join(repo_dir, manifests_dir, os.path.basename(yaml_file_path))
+    shutil.copyfile(yaml_file_path, dest_path)
+
+    repo.index.add([dest_path])
+    repo.index.commit("Automated VM YAML push")
+    repo.remote(name="origin").push()
+
+---------------------------------------------
+from flask import Flask, request, jsonify
+from .utils import render_vm_yaml, save_yaml_to_file, push_yaml_to_git
+
+app = Flask(__name__)
+
+@app.route("/", methods=["GET"])
+def home():
+    return "VM Request API is running!"
+
+@app.route("/api/vm-request", methods=["POST"])
+def vm_request():
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    required_fields = [
+        "vm_name", "namespace", "volume_name", "image_url",
+        "storage_size", "memory", "cloud_user", "cloud_password"
+    ]
+    missing = [f for f in required_fields if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+    try:
+        # Render YAML
+        yaml_content = render_vm_yaml(data)
+
+        # Save to local file
+        filename = f"/tmp/{data['vm_name']}.yaml"
+        save_yaml_to_file(yaml_content, filename)
+
+        # Push to GitLab
+        push_yaml_to_git(filename)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"status": "accepted", "details": data}), 200
+
+
