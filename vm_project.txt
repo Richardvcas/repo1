@@ -149,4 +149,19 @@ def vm_request():
 
     return jsonify({"status": "accepted", "details": data}), 200
 
+---------------------------------------------------------------------
+curl -X POST http://localhost:5000/api/vm-request \
+  -H "Content-Type: application/json" \
+  -d '{
+        "vm_name": "vm67",
+        "namespace": "testproject1",
+        "volume_name": "vol67",
+        "image_url": "http://10.14.222.30:8080/rhel-9.4-x86_64-kvm.qcow2",
+        "storage_size": "30Gi",
+        "memory": "4Gi",
+        "cloud_user": "cloud-user",
+        "cloud_password": "a23456"
+      }'
+
+
 
