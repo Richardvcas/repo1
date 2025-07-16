@@ -1,0 +1,116 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: vmri70
+  namespace: testproject2
+spec:
+  dataVolumeTemplates:
+    - apiVersion: cdi.kubevirt.io/v1beta1
+      kind: DataVolume
+      metadata:
+        name: vol89
+      spec:
+        source:
+          http:
+            url: 'http://10.14.222.30:8080/Fedora-Cloud-Base-Generic.x86_64-40-1.14.qcow2'
+        storage:
+          resources:
+            requests:
+              storage: 30Gi
+  running: true
+  template:
+    spec:
+      architecture: amd64
+      domain:
+        devices:
+          disks:
+            - disk:
+                bus: virtio
+              name: rootdisk
+            - disk:
+                bus: virtio
+              name: cloudinitdisk
+          interfaces:
+            - masquerade: {}
+              model: virtio
+              name: default
+        machine:
+          type: pc-q35-rhel9.4.0
+        memory:
+          guest: 4Gi
+        resources: {}
+      networks:
+        - name: default
+          pod: {}
+      volumes:
+        - dataVolume:
+            name: vol89
+          name: rootdisk
+        - cloudInitNoCloud:
+            userData: |-
+              #cloud-config
+              user: cloud-user
+              password: a23456
+              chpasswd: { expire: False }
+          name: cloudinitdisk
+
+
+
+2nd file
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: vm7
+  namespace: testproject2
+spec:
+  dataVolumeTemplates:
+    - apiVersion: cdi.kubevirt.io/v1beta1
+      kind: DataVolume
+      metadata:
+        name: vol96
+      spec:
+        source:
+          http:
+            url: 'http://10.14.222.30:8080/Fedora-Cloud-Base-Generic.x86_64-40-1.14.qcow2'
+        storage:
+          resources:
+            requests:
+              storage: 30Gi
+  running: true
+  template:
+    spec:
+      architecture: amd64
+      domain:
+        devices:
+          disks:
+            - disk:
+                bus: virtio
+              name: rootdisk
+            - disk:
+                bus: virtio
+              name: cloudinitdisk
+          interfaces:
+            - masquerade: {}
+              model: virtio
+              name: default
+        machine:
+          type: pc-q35-rhel9.4.0
+        memory:
+          guest: 4Gi
+        resources: {}
+      networks:
+        - name: default
+          pod: {}
+      volumes:
+        - dataVolume:
+            name: vol96
+          name: rootdisk
+        - cloudInitNoCloud:
+            userData: |-
+              #cloud-config
+              user: cloud-user
+              password: a23456
+              chpasswd: { expire: False }
+          name: cloudinitdisk
+
+
