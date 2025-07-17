@@ -1,0 +1,24 @@
+cloudInitNoCloud:
+  userData: |-
+    #cloud-config
+    users:
+      - name: root
+        password: "$6$rounds=4096$kWZJZLvw3eq2o$YbZK6y0QsLkJdM0ABHsDlMOGzx83cD38.7TiMNGPO5l1JeRYEXiKRGAnkiWPE8fDMy19JMpCeCuMJCDRgZ6pP1"
+        lock_passwd: false
+        shell: /bin/bash
+      - name: cloud-user
+        password: "$6$rounds=4096$123456$DUMMYENCRYPTEDPASSWORDFORDEMO1234567890"
+        lock_passwd: false
+        shell: /bin/bash
+    chpasswd:
+      expire: false
+    hostname: vmrhel
+    manage_etc_hosts: true
+    network:
+      version: 2
+      ethernets:
+        eth0:
+          dhcp4: false
+          addresses:
+            - 10.14.221.134/26
+          gateway4: 10.14.221.193
