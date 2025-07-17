@@ -135,7 +135,7 @@ spec:
 apiVersion: kubevirt.io/v1
 kind: VirtualMachine
 metadata:
-  name: vm73
+  name: vm74
   namespace: testproject2
 spec:
   dataVolumeTemplates:
@@ -186,7 +186,7 @@ spec:
               user: cloud-user
               password: a23456
               chpasswd: { expire: False }
-              hostname: vm73
+              hostname: vm74
               manage_etc_hosts: true
               network:
                 version: 2
@@ -194,7 +194,6 @@ spec:
                   eth0:
                     dhcp4: false
                     addresses:
-                      -10.14.221.196/26
+                      - 10.14.221.196/26
                     gateway4: 10.14.221.193
           name: cloudinitdisk
-
