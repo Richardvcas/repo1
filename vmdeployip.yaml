@@ -1,0 +1,65 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: wh-labocp-004.wh2.lab.jpmchase.net
+  namespace: wvmtesting
+spec:
+  dataVolumeTemplates:
+    - apiVersion: cdi.kubevirt.io/v1beta1
+      kind: DataVolume
+      metadata:
+        name: root-vol104
+      spec:
+        source:
+          http:
+            url: 'http://10.14.222.30:8080/rhel-8.10-x86_64-kvm.qcow2'
+        storage:
+          resources:
+            requests:
+              storage: 30Gi
+  running: true
+  template:
+    spec:
+      architecture: amd64
+      domain:
+        devices:
+          disks:
+            - disk:
+                bus: virtio
+              name: rootdisk
+            - disk:
+                bus: virtio
+              name: cloudinitdisk
+          interfaces:
+            - masquerade: {}
+              model: virtio
+              name: default
+        machine:
+          type: pc-q35-rhel9.4.0
+        memory:
+          guest: 4Gi
+        resources: {}
+      networks:
+        - name: default
+          pod: {}
+      volumes:
+        - dataVolume:
+            name: root-vol104
+          name: rootdisk
+        - cloudInitNoCloud:
+            userData: |-
+              #cloud-config
+              user: cloud-user
+              password: a23456
+              chpasswd: { expire: False }
+              hostname: wwh-labocp-004.wh2.lab.jpmchase.net
+              manage_etc_hosts: true
+              network:
+                version: 2
+                ethernets:
+                  eth0:
+                    dhcp4: false
+                    addresses:
+                      - 10.14.221.134/26
+                    gateway4: 10.240.46.129
+          name: cloudinitdisk
