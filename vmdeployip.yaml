@@ -8,7 +8,7 @@ spec:
     - apiVersion: cdi.kubevirt.io/v1beta1
       kind: DataVolume
       metadata:
-        name: root-vol104
+        name: root-vol107
       spec:
         source:
           http:
@@ -31,20 +31,21 @@ spec:
                 bus: virtio
               name: cloudinitdisk
           interfaces:
-            - masquerade: {}
+            - name: eth0            
               model: virtio
-              name: default
+              bridge: {}
         machine:
           type: pc-q35-rhel9.4.0
         memory:
           guest: 4Gi
         resources: {}
       networks:
-        - name: default
-          pod: {}
+        - name: eth0
+          multus:
+            networkName: default/vlan3702
       volumes:
         - dataVolume:
-            name: root-vol104
+            name: root-vol107
           name: rootdisk
         - cloudInitNoCloud:
             userData: |-
@@ -58,8 +59,10 @@ spec:
                 version: 2
                 ethernets:
                   eth0:
+                    dhcp6: false
                     dhcp4: false
+                    accept-ra: false
                     addresses:
                       - 10.14.221.134/26
-                    gateway4: 10.240.46.129
+                    gateway4: 10.14.221.129
           name: cloudinitdisk
