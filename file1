@@ -13,7 +13,7 @@ spec:
       spec:
         source:
           http:
-            url: 'http://10.14.222.30:8080/rhel-8.10-x86_64-kvm.qcow2'
+            url: 'http://10.14.222.30:8080/rhel-9.4-x86_64-kvm.qcow2'
         storage:
           resources:
             requests:
@@ -33,6 +33,7 @@ spec:
           interfaces:
             - name: nic-gray-wh-labocp-004
               model: virtio
+              macAddress: 02:25:98:00:00:46  
               bridge: {}
         machine:
           type: pc-q35-rhel9.4.0
@@ -51,10 +52,9 @@ spec:
           cloudInitNoCloud:
             userData: |
               #cloud-config
-              hostname: wh-labocp-004.wh2.lab.jpmchase.net
-              manage_etc_hosts: true
-              users:
-                - name: cloud-user
+              name: cloud-user
+              password: a23456
+              chpasswd: { expire: False}  
               network:
                 version: 2
                 ethernets:
