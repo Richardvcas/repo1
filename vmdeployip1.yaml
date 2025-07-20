@@ -1,0 +1,72 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: wh-labocp-004
+  namespace: wvmtesting
+spec:
+  running: true
+  dataVolumeTemplates:
+    - apiVersion: cdi.kubevirt.io/v1beta1
+      kind: DataVolume
+      metadata:
+        name: root-vol117
+      spec:
+        source:
+          http:
+            url: 'http://10.14.222.30:8080/rhel-8.10-x86_64-kvm.qcow2'
+        storage:
+          resources:
+            requests:
+              storage: 30Gi
+  template:
+    spec:
+      architecture: amd64
+      domain:
+        devices:
+          disks:
+            - name: rootdisk
+              disk:
+                bus: virtio
+            - name: cloudinitdisk
+              disk:
+                bus: virtio
+          interfaces:
+            - bridge: {}
+              modle: virtio                
+              name: nic-gray-wh-labocp-004
+        machine:
+          type: pc-q35-rhel9.4.0
+        memory:
+          guest: 4Gi
+        resources: {}
+      networks:
+        - multus:
+            networkName: default/vlan3702
+          name: nic-gray-wh-labocp-004
+      volumes:
+        - name: rootdisk
+          dataVolume:
+            name: root-vol117
+        - name: cloudinitdisk
+          cloudInitNoCloud:
+            userData: |
+              #cloud-config
+              hostname: wh-labocp-004.wh2.lab.jpmchase.net
+              manage_etc_hosts: true
+              users:
+                - name: cloud-user
+                  password: a23456
+                  lock_passwd: false
+              chpasswd:
+                expire: false
+              ssh_pwauth: true
+                networkData: |
+                ethernets:
+                  eth0:
+                    dhcp4: false
+                    dhcp6: false
+                    addresses:
+                      - 10.14.221.134/26
+                    gateway4: 10.14.221.129
+                version: 2
+          name: cloudinitdisk
