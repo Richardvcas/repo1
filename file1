@@ -1,59 +1,20 @@
-def push_yaml_to_git(yaml_file_path):
-#    response = requests.get('https://gitlab.lab.jpmchase.net/V849212/vm-project.git', verify=False)
-    repo_dir = r"C:\Users\V849212\Documents\vm_api_project\repo_clonenew"     
-    manifests_dir = "manifests"
-
-    os.environ['GIT_SSL_NO_VERIFY'] = 'true'
-    if not os.path.exists(repo_dir):
-        repo = git.Repo.clone_from(GIT_REPO_URL, repo_dir)
-    else:
-        repo = git.Repo(repo_dir)
-        repo.remotes.origin.pull
-
-    
-    # Example: C:\Users\V849212\Documents\vm_api_project\data\vm67.yaml
-    local_file_full_path = yaml_file_path
-
-    
-    dest_path = os.path.join(repo_dir, manifests_dir, os.path.basename(local_file_full_path))
-    shutil.copyfile(local_file_full_path, dest_path)
-
-    repo.index.add([dest_path])
-    repo.index.commit("Automated VM YAML push")
-    repo.remote(name="origin").push()
-
-
-
-
-def push_yaml_to_git(yaml_file_path):
-    import git
-    import os
-    import shutil
-
+def remove_yaml_from_git(yaml_file_path):
     repo_dir = r"C:\Users\V849212\Documents\vm_api_project\repo_clonenew"
     manifests_dir = "manifests"
-    file_name = os.path.basename(yaml_file_path)
+
+    if os.path.exists(repo_dir):
+        shutil.rmtree(repo_dir)
 
     os.environ['GIT_SSL_NO_VERIFY'] = 'true'
+    repo = git.Repo.clone_from(GIT_REPO_URL, repo_dir)
 
-    # Clone the repo if it doesn't exist
-    if not os.path.exists(repo_dir):
-        repo = git.Repo.clone_from(GIT_REPO_URL, repo_dir, branch="main")
+    # Compute target path inside repo
+    dest_path = os.path.join(repo_dir, manifests_dir, os.path.basename(yaml_file_path))
+
+    if os.path.exists(dest_path):
+        # Perform git rm --cached (remove from index only)
+        repo.index.remove([dest_path], working_tree=True)
+        repo.index.commit(f"Remove {os.path.basename(yaml_file_path)} from Git repo")
+        repo.remote(name="origin").push()
     else:
-        repo = git.Repo(repo_dir)
-        origin = repo.remotes.origin
-        origin.fetch()
-        repo.git.checkout('main')
-        repo.git.reset('--hard', 'origin/main')
-
-    # Create manifests directory if missing
-    dest_path = os.path.join(repo_dir, manifests_dir, file_name)
-    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-
-    # Copy YAML file into repo
-    shutil.copyfile(yaml_file_path, dest_path)
-
-    # Add, commit, and push
-    repo.index.add([dest_path])
-    repo.index.commit(f"Automated commit: {file_name}")
-    repo.remote(name="origin").push()
+        raise FileNotFoundError(f"{dest_path} not found in cloned repo")
