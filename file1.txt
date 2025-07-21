@@ -1,240 +1,110 @@
-apiVersion: kubevirt.io/v1
-kind: VirtualMachine
-metadata:
-  annotations:
-    description: VM example
-    kubectl.kubernetes.io/last-applied-configuration: |
-      {"apiVersion":"kubevirt.io/v1","kind":"VirtualMachine","metadata":{"annotations":{"description":"VM example","kubevirt.io/latest-observed-api-version":"v1","kubevirt.io/storage-observed-api-version":"v1"},"finalizers":["kubevirt.io/virtualMachineControllerFinalize"],"labels":{"app":"wh-labocp-006","vm.kubevirt.io/template":"rhel8-server-small","vm.kubevirt.io/template.namespace":"openshift","vm.kubevirt.io/template.revision":"1","vm.kubevirt.io/template.version":"v0.29.2"},"name":"wh-labocp-006","namespace":"wvmtesting"},"spec":{"dataVolumeTemplates":[{"apiVersion":"cdi.kubevirt.io/v1beta1","kind":"DataVolume","metadata":{"name":"wh-labocp-006"},"spec":{"source":{"http":{"url":"http://10.14.222.30:8080/rhel-9.4-x86_64-kvm.qcow2"}},"storage":{"resources":{"requests":{"storage":"128Gi"}},"storageClassName":"ocs-storagecluster-ceph-rbd-virtualization"}}}],"running":true,"template":{"metadata":{"annotations":{"vm.kubevirt.io/flavor":"large","vm.kubevirt.io/os":"rhel9","vm.kubevirt.io/workload":"server"},"labels":{"kubevirt.io/domain":"wh-labocp-006","kubevirt.io/size":"large","network.kubevirt.io/headlessService":"headless"}},"spec":{"architecture":"amd64","domain":{"cpu":{"cores":1,"maxSockets":8,"sockets":4,"threads":1},"devices":{"disks":[{"disk":{"bus":"virtio"},"name":"rootdisk"},{"disk":{"bus":"virtio"},"name":"cloudinitdisk"}],"interfaces":[{"bridge":{},"model":"virtio","name":"nic-gray-wh-labocp-006"}],"logSerialConsole":false,"rng":{}},"features":{"acpi":{},"smm":{"enabled":true}},"firmware":{"bootloader":{"efi":{}}},"machine":{"type":"q35"},"memory":{"guest":"16Gi"},"resources":{}},"hostname":"wh-wh-labocp-006","networks":[{"multus":{"networkName":"default/vlan3702"},"name":"nic-gray-wh-labocp-006"}],"volumes":[{"dataVolume":{"name":"wh-labocp-006"},"name":"rootdisk"},{"cloudInitNoCloud":{"networkData":"ethernets:\n  eth0:\n    addresses:\n      - 10.14.221.136/26\n    gateway4: 10.14.221.129\nversion: 2\n","userData":"#cloud-config\nuser: fedora\npassword: 'ld3j-kwm2-aegy'\nchpasswd: { expire: False }"},"name":"cloudinitdisk"}]}}}}
-    kubemacpool.io/transaction-timestamp: '2025-07-19T01:58:23.880374603Z'
-    kubevirt.io/latest-observed-api-version: v1
-    kubevirt.io/storage-observed-api-version: v1
-  resourceVersion: '167962780'
-  name: wh-labocp-006
-  uid: b278e7b4-b8c3-4330-8dfc-cf3a10fd4ca6
-  creationTimestamp: '2025-07-19T01:58:23Z'
-  generation: 1
-  managedFields:
-    - apiVersion: kubevirt.io/v1
-      fieldsType: FieldsV1
-      fieldsV1:
-        'f:metadata':
-          'f:annotations':
-            .: {}
-            'f:description': {}
-            'f:kubectl.kubernetes.io/last-applied-configuration': {}
-            'f:kubevirt.io/latest-observed-api-version': {}
-            'f:kubevirt.io/storage-observed-api-version': {}
-          'f:finalizers':
-            .: {}
-            'v:"kubevirt.io/virtualMachineControllerFinalize"': {}
-          'f:labels':
-            .: {}
-            'f:app': {}
-            'f:vm.kubevirt.io/template': {}
-            'f:vm.kubevirt.io/template.namespace': {}
-            'f:vm.kubevirt.io/template.revision': {}
-            'f:vm.kubevirt.io/template.version': {}
-        'f:spec':
-          .: {}
-          'f:dataVolumeTemplates': {}
-          'f:running': {}
-          'f:template':
-            .: {}
-            'f:metadata':
-              .: {}
-              'f:annotations':
-                .: {}
-                'f:vm.kubevirt.io/flavor': {}
-                'f:vm.kubevirt.io/os': {}
-                'f:vm.kubevirt.io/workload': {}
-              'f:labels':
-                .: {}
-                'f:kubevirt.io/domain': {}
-                'f:kubevirt.io/size': {}
-                'f:network.kubevirt.io/headlessService': {}
-            'f:spec':
-              .: {}
-              'f:architecture': {}
-              'f:domain':
-                .: {}
-                'f:cpu':
-                  .: {}
-                  'f:cores': {}
-                  'f:maxSockets': {}
-                  'f:sockets': {}
-                  'f:threads': {}
-                'f:devices':
-                  .: {}
-                  'f:disks': {}
-                  'f:interfaces': {}
-                  'f:logSerialConsole': {}
-                  'f:rng': {}
-                'f:features':
-                  .: {}
-                  'f:acpi': {}
-                  'f:smm':
-                    .: {}
-                    'f:enabled': {}
-                'f:firmware':
-                  .: {}
-                  'f:bootloader':
-                    .: {}
-                    'f:efi': {}
-                'f:machine':
-                  .: {}
-                  'f:type': {}
-                'f:memory':
-                  .: {}
-                  'f:guest': {}
-                'f:resources': {}
-              'f:hostname': {}
-              'f:networks': {}
-              'f:volumes': {}
-      manager: kubectl-client-side-apply
-      operation: Update
-      time: '2025-07-19T01:58:23Z'
-    - apiVersion: kubevirt.io/v1
-      fieldsType: FieldsV1
-      fieldsV1:
-        'f:status':
-          'f:printableStatus': {}
-          'f:runStrategy': {}
-          'f:conditions': {}
-          .: {}
-          'f:ready': {}
-          'f:volumeSnapshotStatuses': {}
-          'f:observedGeneration': {}
-          'f:created': {}
-          'f:desiredGeneration': {}
-      manager: virt-controller
-      operation: Update
-      subresource: status
-      time: '2025-07-19T01:59:17Z'
-  namespace: wvmtesting
-  finalizers:
-    - kubevirt.io/virtualMachineControllerFinalize
-  labels:
-    app: wh-labocp-006
-    vm.kubevirt.io/template: rhel8-server-small
-    vm.kubevirt.io/template.namespace: openshift
-    vm.kubevirt.io/template.revision: '1'
-    vm.kubevirt.io/template.version: v0.29.2
-spec:
-  dataVolumeTemplates:
-    - apiVersion: cdi.kubevirt.io/v1beta1
-      kind: DataVolume
-      metadata:
-        creationTimestamp: null
-        name: wh-labocp-006
-      spec:
-        source:
-          http:
-            url: 'http://10.14.222.30:8080/rhel-9.4-x86_64-kvm.qcow2'
-        storage:
-          resources:
-            requests:
-              storage: 128Gi
-          storageClassName: ocs-storagecluster-ceph-rbd-virtualization
-  running: true
-  template:
-    metadata:
-      annotations:
-        vm.kubevirt.io/flavor: large
-        vm.kubevirt.io/os: rhel9
-        vm.kubevirt.io/workload: server
-      creationTimestamp: null
-      labels:
-        kubevirt.io/domain: wh-labocp-006
-        kubevirt.io/size: large
-        network.kubevirt.io/headlessService: headless
-    spec:
-      architecture: amd64
-      domain:
-        cpu:
-          cores: 1
-          maxSockets: 8
-          sockets: 4
-          threads: 1
-        devices:
-          disks:
-            - disk:
-                bus: virtio
-              name: rootdisk
-            - disk:
-                bus: virtio
-              name: cloudinitdisk
-          interfaces:
-            - bridge: {}
-              macAddress: '02:25:98:00:00:3c'
-              model: virtio
-              name: nic-gray-wh-labocp-006
-          logSerialConsole: false
-          rng: {}
-        features:
-          acpi: {}
-          smm:
-            enabled: true
-        firmware:
-          bootloader:
-            efi: {}
-        machine:
-          type: q35
-        memory:
-          guest: 16Gi
-        resources: {}
-      hostname: wh-wh-labocp-006
-      networks:
-        - multus:
-            networkName: default/vlan3702
-          name: nic-gray-wh-labocp-006
-      volumes:
-        - dataVolume:
-            name: wh-labocp-006
-          name: rootdisk
-        - cloudInitNoCloud:
-            networkData: |
-              ethernets:
-                eth0:
-                  addresses:
-                    - 10.14.221.136/26
-                  gateway4: 10.14.221.129
-              version: 2
-            userData: |-
-              #cloud-config
-              user: fedora
-              password: 'ld3j-kwm2-aegy'
-              chpasswd: { expire: False }
-          name: cloudinitdisk
-status:
-  conditions:
-    - lastProbeTime: null
-      lastTransitionTime: '2025-07-19T01:59:04Z'
-      status: 'True'
-      type: Ready
-    - lastProbeTime: null
-      lastTransitionTime: null
-      message: All of the VMI's DVs are bound and not running
-      reason: AllDVsReady
-      status: 'True'
-      type: DataVolumesReady
-    - lastProbeTime: null
-      lastTransitionTime: null
-      status: 'True'
-      type: LiveMigratable
-    - lastProbeTime: '2025-07-19T01:59:17Z'
-      lastTransitionTime: null
-      status: 'True'
-      type: AgentConnected
-  created: true
-  desiredGeneration: 1
-  observedGeneration: 1
-  printableStatus: Running
-  ready: true
-  runStrategy: Always
-  volumeSnapshotStatuses:
-    - enabled: true
-      name: rootdisk
-    - enabled: false
-      name: cloudinitdisk
-      reason: 'Snapshot is not supported for this volumeSource type [cloudinitdisk]'
+routes.py
+from flask import Flask, request, jsonify
+from .utils import render_vm_yaml, save_yaml_to_file, push_yaml_to_git
 
+app = Flask(__name__)
+
+@app.route("/", methods=["GET"])
+def home():
+    return "VM Request API is running!"
+
+@app.route("/api/vm-request", methods=["POST"])
+def vm_request():
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    required_fields = [
+        "vm_name", "namespace", "volume_name", "image_url",
+        "storage_size", "memory", "cloud_user", "cloud_password"
+    ]
+    missing = [f for f in required_fields if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+    try:
+        # Render YAML
+        yaml_content = render_vm_yaml(data)
+
+        # Save to local file
+        filename = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{data['vm_name']}.yaml"
+        save_yaml_to_file(yaml_content, filename)
+
+        # Push to GitLab
+        push_yaml_to_git(filename)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"status": "accepted", "details": data}), 200
+
+----------------------------------------------------------------------
+
+utils.py
+import os
+import shutil
+import requests
+import git
+from .templates import VM_YAML_TEMPLATE
+
+GIT_USERNAME = "V849212"
+GIT_PASSWORD = "DigitalWorld@2025"
+#GIT_REPO_URL = f"https://{GIT_USERNAME}:{GIT_PASSWORD}@gitlab.lab.jpmchase.net/V849212/vm-auto.git"
+GIT_REPO_URL = f"https://gitlab.lab.jpmchase.net/V849212/vm-auto.git"
+
+
+
+LOCAL_YAML_FOLDER = r"C:\Users\V849212\Documents\vm_api_project\data"
+
+def render_vm_yaml(user_input):
+    return VM_YAML_TEMPLATE.format(
+        vm_name=user_input["vm_name"],
+        namespace=user_input["namespace"],
+        volume_name=user_input["volume_name"],
+        image_url=user_input["image_url"],
+        storage_size=user_input["storage_size"],
+        memory=user_input["memory"],
+        cloud_user=user_input["cloud_user"],
+        cloud_password=user_input["cloud_password"]
+    )
+
+def save_yaml_to_file(content, filename):
+    
+    full_path = os.path.join(LOCAL_YAML_FOLDER, filename)
+    with open(full_path, "w") as f:
+        f.write(content)
+    return full_path
+
+def push_yaml_to_git(yaml_file_path):
+#    response = requests.get('https://gitlab.lab.jpmchase.net/V849212/vm-project.git', verify=False)
+    repo_dir = r"C:\Users\V849212\Documents\vm_api_project\repo_clonenew"     
+    manifests_dir = "manifests"
+
+    if os.path.exists(repo_dir):
+        shutil.rmtree(repo_dir)
+
+    os.environ['GIT_SSL_NO_VERIFY'] = 'true'
+    repo = git.Repo.clone_from(GIT_REPO_URL, repo_dir)
+
+    
+    # Example: C:\Users\V849212\Documents\vm_api_project\data\vm67.yaml
+    local_file_full_path = yaml_file_path
+
+    
+    dest_path = os.path.join(repo_dir, manifests_dir, os.path.basename(local_file_full_path))
+    shutil.copyfile(local_file_full_path, dest_path)
+
+    repo.index.add([dest_path])
+    repo.index.commit("Automated VM YAML push")
+    repo.remote(name="origin").push()
+
+
+
+Use bodydelete.json deleting
+Use body.json for pushing
+vm_name : wvm-004
+
+the above two programs i have
+
+if i call using curl curl -X POST http://localhost:5000/api/vm-request -H "Content-Type: application/json" -d @bodydelete.json then i want to delete the file wvm-004.yaml file from repositoyr the above code is like pushing yaml to gitlab right the same way remove file not permantly like we can use git rm --cached C:\Users\V849212\Documents\vm_api_project\data and delete the file from gitlab hope you understand above code is pushing my file from local directory to gitlab right, not i want to remove from gitlab
