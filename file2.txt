@@ -1,2 +1,58 @@
-This is test file
+VM_YAML_TEMPLATE = """\
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: wh-labocp-004
+  namespace: wvmtesting
+spec:
+  dataVolumeTemplates:
+    - apiVersion: cdi.kubevirt.io/v1beta1
+      kind: DataVolume
+      metadata:
+        name: vol67
+      spec:
+        source:
+          http:
+            url: 'http://10.14.222.30:8080/rhel-9.4-x86_64-kvm.qcow2'
+        storage:
+          resources:
+            requests:
+              storage: 30Gi
+  running: true
+  template:
+    spec:
+      architecture: amd64
+      domain:
+        devices:
+          disks:
+            - disk:
+                bus: virtio
+              name: rootdisk
+            - disk:
+                bus: virtio
+              name: cloudinitdisk
+          interfaces:
+            - masquerade: {}
+              model: virtio
+              name: default
+        machine:
+          type: pc-q35-rhel9.4.0
+        memory:
+          guest: 8Gi
+        resources: {}
+      networks:
+        - name: default
+          pod: {}
+      volumes:
+        - dataVolume:
+            name: vol67
+          name: rootdisk
+        - cloudInitNoCloud:
+            userData: |-
+              user: cloud-user
+              password: a23456
+              chpasswd: { expire: False }
+          name: cloudinitdisk
+
+"""
 
