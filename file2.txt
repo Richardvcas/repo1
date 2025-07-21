@@ -51,8 +51,7 @@ spec:
             userData: |-
               user: cloud-user
               password: a23456
-              chpasswd: { expire: False }
+              chpasswd: {{ expire: False }}
           name: cloudinitdisk
 
 """
-
