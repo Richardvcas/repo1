@@ -1,18 +1,4 @@
-{
-    "vm_name": "wh-labocp-004",
-    "namespace": "wvmtesting",
-    "volume_name": "vol67",
-    "image_url": "http://10.14.222.30:8080/rhel-9.4-x86_64-kvm.qcow2",
-    "storage_size": "30Gi",    
-    "memory": "8Gi",    
-    "cloud_user": "cloud-user",
-    "cloud_password": "a23456"
-}
-
-
-
-
-
+templates.py
 
 VM_YAML_TEMPLATE = """\
 apiVersion: kubevirt.io/v1
@@ -61,7 +47,7 @@ spec:
           pod: {}
       volumes:
         - dataVolume:
-            name: vol67
+            name: {volume_name}
           name: rootdisk
         - cloudInitNoCloud:
             userData: |-
@@ -71,3 +57,16 @@ spec:
           name: cloudinitdisk
 
 """
+
+
+body.json
+{
+    "vm_name": "wh-labocp-004",
+    "namespace": "wvmtesting",
+    "volume_name": "vol67",
+    "image_url": "http://10.14.222.30:8080/rhel-9.4-x86_64-kvm.qcow2",
+    "storage_size": "30Gi",    
+    "memory": "8Gi",    
+    "cloud_user": "cloud-user",
+    "cloud_password": "a23456"
+}
