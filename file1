@@ -18,3 +18,38 @@ def remove_yaml_from_git(yaml_file_path):
         repo.remote(name="origin").push()
     else:
         raise FileNotFoundError(f"{dest_path} not found in cloned repo")
+
+
+
+
+def remove_yaml_from_git(yaml_file_path):
+    import os
+    import shutil
+    import git
+
+    repo_dir = r"C:\Users\V849212\Documents\vm_api_project\repo_clonenew"
+    manifests_dir = "manifests"
+    file_name = os.path.basename(yaml_file_path)
+
+    os.environ['GIT_SSL_NO_VERIFY'] = 'true'
+
+    # Clone the repo if not already
+    if not os.path.exists(repo_dir):
+        repo = git.Repo.clone_from(GIT_REPO_URL, repo_dir, branch="main")
+    else:
+        repo = git.Repo(repo_dir)
+        origin = repo.remotes.origin
+        origin.fetch()
+        repo.git.checkout('main')
+        repo.git.reset('--hard', 'origin/main')
+
+    # Path to file inside the Git repo
+    dest_path = os.path.join(repo_dir, manifests_dir, file_name)
+
+    # Remove the file from Git index if it exists
+    if os.path.exists(dest_path):
+        repo.index.remove([dest_path], working_tree=True)
+        repo.index.commit(f"Removed {file_name} from Git repo")
+        repo.remote(name='origin').push()
+    else:
+        raise FileNotFoundError(f"{file_name} not found in repo under manifests/")
