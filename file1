@@ -1,4 +1,4 @@
 $ curl -X POST http://localhost:5000/api/vm-request -H "Content-Type: application/json" -d @body.json
 {
-  "error": "[WinError 5] Access is denied: 'C:\\\\Users\\\\V849212\\\\Documents\\\\vm_api_project\\\\repo_clonenew\\\\.git\\\\objects\\\\pack\\\\pack-22d29ffde4c20e257e6104414c1249102238b9a6.idx'"
+  "error": "Reference at 'refs/heads/main' does already exist, pointing to 'd5bcbbeee64581cb6dd9b183cc4a76f1327ce232', requested was '692e4745e13fb7688dcc4a0a415d08cc40ed9ffb'"
 }
