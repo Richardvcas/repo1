@@ -21,3 +21,39 @@ def push_yaml_to_git(yaml_file_path):
     repo.index.add([dest_path])
     repo.index.commit("Automated VM YAML push")
     repo.remote(name="origin").push()
+
+
+
+
+def push_yaml_to_git(yaml_file_path):
+    import git
+    import os
+    import shutil
+
+    repo_dir = r"C:\Users\V849212\Documents\vm_api_project\repo_clonenew"
+    manifests_dir = "manifests"
+    file_name = os.path.basename(yaml_file_path)
+
+    os.environ['GIT_SSL_NO_VERIFY'] = 'true'
+
+    # Clone the repo if it doesn't exist
+    if not os.path.exists(repo_dir):
+        repo = git.Repo.clone_from(GIT_REPO_URL, repo_dir, branch="main")
+    else:
+        repo = git.Repo(repo_dir)
+        origin = repo.remotes.origin
+        origin.fetch()
+        repo.git.checkout('main')
+        repo.git.reset('--hard', 'origin/main')
+
+    # Create manifests directory if missing
+    dest_path = os.path.join(repo_dir, manifests_dir, file_name)
+    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+
+    # Copy YAML file into repo
+    shutil.copyfile(yaml_file_path, dest_path)
+
+    # Add, commit, and push
+    repo.index.add([dest_path])
+    repo.index.commit(f"Automated commit: {file_name}")
+    repo.remote(name="origin").push()
