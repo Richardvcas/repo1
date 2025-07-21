@@ -1,23 +1,39 @@
+{
+    "vm_name": "wh-labocp-004",
+    "namespace": "wvmtesting",
+    "volume_name": "vol67",
+    "image_url": "http://10.14.222.30:8080/rhel-9.4-x86_64-kvm.qcow2",
+    "storage_size": "30Gi",    
+    "memory": "8Gi",    
+    "cloud_user": "cloud-user",
+    "cloud_password": "a23456"
+}
+
+
+
+
+
+
 VM_YAML_TEMPLATE = """\
 apiVersion: kubevirt.io/v1
 kind: VirtualMachine
 metadata:
-  name: wh-labocp-004
-  namespace: wvmtesting
+  name: {vm_name}
+  namespace: {namespace}
 spec:
   dataVolumeTemplates:
     - apiVersion: cdi.kubevirt.io/v1beta1
       kind: DataVolume
       metadata:
-        name: vol67
+        name: {volume_name}
       spec:
         source:
           http:
-            url: 'http://10.14.222.30:8080/rhel-9.4-x86_64-kvm.qcow2'
+            url: {image_url}
         storage:
           resources:
             requests:
-              storage: 30Gi
+              storage: {storage_size}
   running: true
   template:
     spec:
@@ -38,7 +54,7 @@ spec:
         machine:
           type: pc-q35-rhel9.4.0
         memory:
-          guest: 8Gi
+          guest: {memory}
         resources: {}
       networks:
         - name: default
@@ -49,8 +65,8 @@ spec:
           name: rootdisk
         - cloudInitNoCloud:
             userData: |-
-              user: cloud-user
-              password: a23456
+              user: {cloud_user}
+              password: {cloud_password}
               chpasswd: {{ expire: False }}
           name: cloudinitdisk
 
