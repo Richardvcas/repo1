@@ -1,8 +1,9 @@
+VM_YAML_TEMPLATE = """\
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: dbdata
-  namespace: wvmtesting
+  name: {diskname}
+  namespace: {namespace}
 spec:
   accessModes:
     - ReadWriteOnce
@@ -18,8 +19,8 @@ metadata:
     description: VM example
     kubevirt.io/latest-observed-api-version: v1
     kubevirt.io/storage-observed-api-version: v1
-  name: wh-labocp-004
-  namespace: wvmtesting
+  name: {vm_name}
+  namespace: {namespace}
   finalizers:
     - kubevirt.io/virtualMachineControllerFinalize
   labels:
@@ -33,17 +34,17 @@ spec:
     - apiVersion: cdi.kubevirt.io/v1beta1
       kind: DataVolume
       metadata:
-        name: rhel9root
+        name: {volume_name}
       spec:
         source:
           http:
-            url: 'http://10.14.222.30:8080/rhel-9.4-x86_64-kvm.qcow2'
+            url: '{image_url}'
         storage:
           resources:
             requests:
-              storage: 30Gi
+              storage: {storage_size}
           storageClassName: ocs-storagecluster-ceph-rbd-virtualization  
-  running: true
+  running: {status}
   template:
     metadata:
       annotations:
@@ -59,7 +60,7 @@ spec:
       domain:
         cpu:
           cores: 1
-          sockets: 1
+          sockets: {cpu}
           threads: 1
           maxSockets: 8      
         devices:
@@ -74,36 +75,36 @@ spec:
                 bus: virtio
               name: cloudinitdisk
           interfaces:
-            - bridge: {}
+            - bridge: {{}}
               model: virtio
               name: nic-gray-wh-labocp-004
           logSerialConsole: false
-          rng: {}
+          rng: {{}}
         features:
-          acpi: {}
+          acpi: {{}}
           smm:
             enabled: true
         firmware:
           bootloader:
-            efi: {}
+            efi: {{}}
         machine:
           type: pc-q35-rhel9.4.0
         memory:
-          guest: 4Gi
-        resources: {}
-      hostname: wh-labocp-004
+          guest: {memory}
+        resources: {{}}
+      hostname: {vm_name}
       networks:
         - multus:
             networkName: default/vlan3702
           name: nic-gray-wh-labocp-004
       volumes:
         - dataVolume:
-           name: rhel9root
+           name: {volume_name}
           name: rootdisk
         - name: appdata
           persistentVolumeClaim:
-           claimName: dbdata          
-        - cloudInitNoCloud:
+           claimName: {diskname}          
+        - cloudInitNoCloud: 
             networkData: |
               ethernets:
                 eth0:
@@ -115,7 +116,8 @@ spec:
               #cloud-config
               user: cloud-user
               password: 'a23456'
-              chpasswd: { "expire": False }
+              chpasswd: {{ "expire": False }}
           name: cloudinitdisk
 
 
+"""
