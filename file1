@@ -1,92 +1,8 @@
-app.py
-
-from api.routes import app
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
-
-routes.py
-
-import os
-from flask import Flask, request, jsonify
-from .utils import render_vm_yaml, save_yaml_to_file, push_yaml_to_git, remove_yaml_from_git
-
-app = Flask(__name__)
-
-@app.route("/", methods=["GET"])
-def home():
-    return "VM Request API is running!"
-
-@app.route("/api/vm-request", methods=["POST"])
-def vm_request():
-    data = request.get_json()
-
-    if not data:
-        return jsonify({"error": "Invalid JSON"}), 400
-
-    required_fields = [
-        "vm_name", "namespace", "volume_name", "image_url",
-        "storage_size", "cpu", "memory", "diskname", "cloud_user", "cloud_password"
-    ]
-    missing = [f for f in required_fields if f not in data]
-    if missing:
-        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
-
-    try:
-        # Render YAML
-        yaml_content = render_vm_yaml(data)
-
-        # Save to local file
-        filename = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{data['vm_name']}.yaml"
-        save_yaml_to_file(yaml_content, filename)
-
-        # Push to GitLab
-        push_yaml_to_git(filename)
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-    return jsonify({"status": "accepted", "details": data}), 200
-
-@app.route("/api/vm-delete", methods=["POST"])
-def vm_delete():
-    data = request.get_json()
-    if not data or "vm_name" not in data:
-        return jsonify({"error": "Missing vm_name"}), 400
-
-    try:
-        yaml_filename = f"{data['vm_name']}.yaml"
-        yaml_path = os.path.join("C:\\Users\\V849212\\Documents\\vm_api_project\\data", yaml_filename)
-        remove_yaml_from_git(yaml_path)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-    return jsonify({"status": "deleted", "vm_name": data["vm_name"]}), 200
-
-
-body.json
-
-{
-    "vm_name": "wh-labocp-004",
-    "namespace": "wvmtesting",
-    "volume_name": "vol67",
-    "image_url": "http://10.14.222.30:8080/rhel-9.4-x86_64-kvm.qcow2",
-    "storage_size": "30Gi",  
-    "cpu": "1",  
-    "memory": "4Gi",    
-    "diskname": "dbdata",
-    "cloud_user": "cloud-user",
-    "cloud_password": "a23456"
-}
-
-templates.py
-
-VM_YAML_TEMPLATE = """\
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {diskname}
-  namespace: {namespace}
+  name: dbdata
+  namespace: wvmtesting
 spec:
   accessModes:
     - ReadWriteOnce
@@ -102,8 +18,8 @@ metadata:
     description: VM example
     kubevirt.io/latest-observed-api-version: v1
     kubevirt.io/storage-observed-api-version: v1
-  name: {vm_name}
-  namespace: {namespace}
+  name: wh-labocp-004
+  namespace: wvmtesting
   finalizers:
     - kubevirt.io/virtualMachineControllerFinalize
   labels:
@@ -117,15 +33,15 @@ spec:
     - apiVersion: cdi.kubevirt.io/v1beta1
       kind: DataVolume
       metadata:
-        name: {volume_name}
+        name: rhel9root
       spec:
         source:
           http:
-            url: '{image_url}'
+            url: 'http://10.14.222.30:8080/rhel-9.4-x86_64-kvm.qcow2'
         storage:
           resources:
             requests:
-              storage: {storage_size}
+              storage: 30Gi
           storageClassName: ocs-storagecluster-ceph-rbd-virtualization  
   running: true
   template:
@@ -143,7 +59,7 @@ spec:
       domain:
         cpu:
           cores: 1
-          sockets: {cpu}
+          sockets: 1
           threads: 1
           maxSockets: 8      
         devices:
@@ -158,35 +74,35 @@ spec:
                 bus: virtio
               name: cloudinitdisk
           interfaces:
-            - bridge: {{}}
+            - bridge: {}
               model: virtio
               name: nic-gray-wh-labocp-004
           logSerialConsole: false
-          rng: {{}}
+          rng: {}
         features:
-          acpi: {{}}
+          acpi: {}
           smm:
             enabled: true
         firmware:
           bootloader:
-            efi: {{}}
+            efi: {}
         machine:
           type: pc-q35-rhel9.4.0
         memory:
-          guest: {memory}
-        resources: {{}}
-      hostname: {vm_name}
+          guest: 4Gi
+        resources: {}
+      hostname: wh-labocp-004
       networks:
         - multus:
             networkName: default/vlan3702
           name: nic-gray-wh-labocp-004
       volumes:
         - dataVolume:
-           name: {volume_name}
+           name: rhel9root
           name: rootdisk
         - name: appdata
           persistentVolumeClaim:
-           claimName: {diskname}          
+           claimName: dbdata          
         - cloudInitNoCloud:
             networkData: |
               ethernets:
@@ -199,111 +115,7 @@ spec:
               #cloud-config
               user: cloud-user
               password: 'a23456'
-              chpasswd: {{ "expire": False }}
+              chpasswd: { "expire": False }
           name: cloudinitdisk
 
 
-"""
-
-utils.py
-import os
-import shutil
-import requests
-import git
-from .templates import VM_YAML_TEMPLATE
-
-GIT_USERNAME = "V849212"
-GIT_PASSWORD = "DigitalWorld@2025"
-#GIT_REPO_URL = f"https://{GIT_USERNAME}:{GIT_PASSWORD}@gitlab.lab.jpmchase.net/V849212/vm-auto.git"
-GIT_REPO_URL = f"https://gitlab.lab.jpmchase.net/V849212/vm-auto.git"
-
-
-
-LOCAL_YAML_FOLDER = r"C:\Users\V849212\Documents\vm_api_project\data"
-
-def render_vm_yaml(user_input):
-    return VM_YAML_TEMPLATE.format(
-        vm_name=user_input["vm_name"],
-        namespace=user_input["namespace"],
-        volume_name=user_input["volume_name"],
-        image_url=user_input["image_url"],
-        storage_size=user_input["storage_size"],        
-        cpu=user_input["cpu"],
-        memory=user_input["memory"], 
-        diskname=user_input["diskname"],       
-        cloud_user=user_input["cloud_user"],
-        cloud_password=user_input["cloud_password"]
-    )
-
-def save_yaml_to_file(content, filename):
-    
-    full_path = os.path.join(LOCAL_YAML_FOLDER, filename)
-    with open(full_path, "w") as f:
-        f.write(content)
-    return full_path
-
-def push_yaml_to_git(yaml_file_path):
-    import git
-    import os
-    import shutil
-
-    repo_dir = r"C:\Users\V849212\Documents\vm_api_project\repo_clonenew"
-    manifests_dir = "manifests"
-    file_name = os.path.basename(yaml_file_path)
-
-    os.environ['GIT_SSL_NO_VERIFY'] = 'true'
-
-    # Clone the repo if it doesn't exist
-    if not os.path.exists(repo_dir):
-        repo = git.Repo.clone_from(GIT_REPO_URL, repo_dir, branch="main")
-    else:
-        repo = git.Repo(repo_dir)
-        origin = repo.remotes.origin
-        origin.fetch()
-        repo.git.checkout('main')
-        repo.git.reset('--hard', 'origin/main')
-
-    # Create manifests directory if missing
-    dest_path = os.path.join(repo_dir, manifests_dir, file_name)
-    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-
-    # Copy YAML file into repo
-    shutil.copyfile(yaml_file_path, dest_path)
-
-    # Add, commit, and push
-    repo.index.add([dest_path])
-    repo.index.commit(f"Automated commit: {file_name}")
-    repo.remote(name="origin").push()
-
-
-def remove_yaml_from_git(yaml_file_path):
-    import os
-    import shutil
-    import git
-
-    repo_dir = r"C:\Users\V849212\Documents\vm_api_project\repo_clonenew"
-    manifests_dir = "manifests"
-    file_name = os.path.basename(yaml_file_path)
-
-    os.environ['GIT_SSL_NO_VERIFY'] = 'true'
-
-    # Clone the repo if not already
-    if not os.path.exists(repo_dir):
-        repo = git.Repo.clone_from(GIT_REPO_URL, repo_dir, branch="main")
-    else:
-        repo = git.Repo(repo_dir)
-        origin = repo.remotes.origin
-        origin.fetch()
-        repo.git.checkout('main')
-        repo.git.reset('--hard', 'origin/main')
-
-    # Path to file inside the Git repo
-    dest_path = os.path.join(repo_dir, manifests_dir, file_name)
-
-    # Remove the file from Git index if it exists
-    if os.path.exists(dest_path):
-        repo.index.remove([dest_path], working_tree=True)
-        repo.index.commit(f"Removed {file_name} from Git repo")
-        repo.remote(name='origin').push()
-    else:
-        raise FileNotFoundError(f"{file_name} not found in repo under manifests/")
