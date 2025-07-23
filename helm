@@ -1,0 +1,171 @@
+chart.yaml
+
+apiVersion: v2
+name: vm-helm-chart
+description: A Helm chart for deploying KubeVirt VirtualMachines
+type: application
+version: 0.1.0
+appVersion: "1.0"
+
+values.yaml
+
+namespace: wvmtesting
+
+vm:
+  name: vm-rhel
+  description: VM example
+  template:
+    revision: "1"
+    version: v0.29.2
+    flavor: large
+    os: rhel9
+    workload: server
+  cpu: 2
+  memory: 8Gi
+  status: true
+  image:
+    url: "http://10.14.222.30:8080/rhel-9.3.qcow2"
+    size: 30Gi
+
+disks:
+  dataDisk:
+    enabled: true
+    name: appdata
+    size: 10Gi
+
+network:
+  name: nic-gray
+  address: 10.14.221.134
+  gateway: 10.14.221.129
+  cidr: 26
+
+cloudInit:
+  username: cloud-user
+  password: a23456
+
+
+templages/pvc.yaml
+
+{{- if .Values.disks.dataDisk.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.disks.dataDisk.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.disks.dataDisk.size }}
+  storageClassName: ocs-storagecluster-ceph-rbd-virtualization
+{{- end }}
+
+templages/vm.yaml
+
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: {{ .Values.vm.name }}
+  namespace: {{ .Values.namespace }}
+  annotations:
+    description: {{ .Values.vm.description }}
+    kubevirt.io/latest-observed-api-version: v1
+    kubevirt.io/storage-observed-api-version: v1
+  finalizers:
+    - kubevirt.io/virtualMachineControllerFinalize
+  labels:
+    app: {{ .Values.vm.name }}
+    vm.kubevirt.io/template: rhel8-server-small
+    vm.kubevirt.io/template.namespace: openshift
+    vm.kubevirt.io/template.revision: "{{ .Values.vm.template.revision }}"
+    vm.kubevirt.io/template.version: {{ .Values.vm.template.version }}
+spec:
+  running: {{ .Values.vm.status }}
+  dataVolumeTemplates:
+    - apiVersion: cdi.kubevirt.io/v1beta1
+      kind: DataVolume
+      metadata:
+        name: rootdisk
+      spec:
+        source:
+          http:
+            url: "{{ .Values.vm.image.url }}"
+        storage:
+          resources:
+            requests:
+              storage: {{ .Values.vm.image.size }}
+          storageClassName: ocs-storagecluster-ceph-rbd-virtualization
+  template:
+    metadata:
+      annotations:
+        vm.kubevirt.io/flavor: {{ .Values.vm.template.flavor }}
+        vm.kubevirt.io/os: {{ .Values.vm.template.os }}
+        vm.kubevirt.io/workload: {{ .Values.vm.template.workload }}
+      labels:
+        kubevirt.io/domain: {{ .Values.vm.name }}
+        kubevirt.io/size: {{ .Values.vm.template.flavor }}
+        network.kubevirt.io/headlessService: headless
+    spec:
+      architecture: amd64
+      domain:
+        cpu:
+          cores: 1
+          sockets: {{ .Values.vm.cpu }}
+          threads: 1
+        memory:
+          guest: {{ .Values.vm.memory }}
+        devices:
+          disks:
+            - name: rootdisk
+              disk:
+                bus: virtio
+            {{- if .Values.disks.dataDisk.enabled }}
+            - name: {{ .Values.disks.dataDisk.name }}
+              disk:
+                bus: virtio
+            {{- end }}
+            - name: cloudinitdisk
+              disk:
+                bus: virtio
+          interfaces:
+            - name: {{ .Values.network.name }}
+              model: virtio
+              bridge: {}
+          rng: {}
+        firmware:
+          bootloader:
+            efi: {}
+        features:
+          acpi: {}
+          smm:
+            enabled: true
+        resources: {}
+      hostname: {{ .Values.vm.name }}
+      networks:
+        - name: {{ .Values.network.name }}
+          multus:
+            networkName: default/vlan3702
+      volumes:
+        - name: rootdisk
+          dataVolume:
+            name: rootdisk
+        {{- if .Values.disks.dataDisk.enabled }}
+        - name: {{ .Values.disks.dataDisk.name }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.disks.dataDisk.name }}
+        {{- end }}
+        - name: cloudinitdisk
+          cloudInitNoCloud:
+            userData: |
+              #cloud-config
+              user: {{ .Values.cloudInit.username }}
+              password: '{{ .Values.cloudInit.password }}'
+              chpasswd: { expire: False }
+            networkData: |
+              version: 2
+              ethernets:
+                eth0:
+                  addresses:
+                    - {{ .Values.network.address }}/{{ .Values.network.cidr }}
+                  gateway4: {{ .Values.network.gateway }}
