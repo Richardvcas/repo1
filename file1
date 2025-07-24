@@ -1,123 +1,13 @@
-VM_YAML_TEMPLATE = """\
-apiVersion: v1
-kind: PersistentVolumeClaim
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
 metadata:
-  name: {diskname}
-  namespace: {namespace}
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
-  storageClassName: ocs-storagecluster-ceph-rbd-virtualization
----
-apiVersion: kubevirt.io/v1
-kind: VirtualMachine
-metadata:
-  annotations:
-    description: VM example
-    kubevirt.io/latest-observed-api-version: v1
-    kubevirt.io/storage-observed-api-version: v1
-  name: {vm_name}
-  namespace: {namespace}
-  finalizers:
-    - kubevirt.io/virtualMachineControllerFinalize
-  labels:
-    app: wh-labocp-004
-    vm.kubevirt.io/template: rhel8-server-small
-    vm.kubevirt.io/template.namespace: openshift
-    vm.kubevirt.io/template.revision: '1'
-    vm.kubevirt.io/template.version: v0.29.2  
-spec:
-  dataVolumeTemplates:
-    - apiVersion: cdi.kubevirt.io/v1beta1
-      kind: DataVolume
-      metadata:
-        name: {volume_name}
-      spec:
-        source:
-          http:
-            url: '{image_url}'
-        storage:
-          resources:
-            requests:
-              storage: {storage_size}
-          storageClassName: ocs-storagecluster-ceph-rbd-virtualization  
-  running: {status}
-  template:
-    metadata:
-      annotations:
-        vm.kubevirt.io/flavor: large
-        vm.kubevirt.io/os: rhel9
-        vm.kubevirt.io/workload: server
-      labels:
-        kubevirt.io/domain: wh-labocp-004
-        kubevirt.io/size: large
-        network.kubevirt.io/headlessService: headless 
-    spec:
-      architecture: amd64
-      domain:
-        cpu:
-          cores: 1
-          sockets: {cpu}
-          threads: 1
-          maxSockets: 8      
-        devices:
-          disks:
-            - disk:
-                bus: virtio
-              name: rootdisk
-            - disk:
-                bus: virtio
-              name: appdata    
-            - disk:
-                bus: virtio
-              name: cloudinitdisk
-          interfaces:
-            - bridge: {{}}
-              model: virtio
-              name: nic-gray-wh-labocp-004
-          logSerialConsole: false
-          rng: {{}}
-        features:
-          acpi: {{}}
-          smm:
-            enabled: true
-        firmware:
-          bootloader:
-            efi: {{}}
-        machine:
-          type: pc-q35-rhel9.4.0
-        memory:
-          guest: {memory}
-        resources: {{}}
-      hostname: {vm_name}
-      networks:
-        - multus:
-            networkName: default/vlan3702
-          name: nic-gray-wh-labocp-004
-      volumes:
-        - dataVolume:
-           name: {volume_name}
-          name: rootdisk
-        - name: appdata
-          persistentVolumeClaim:
-           claimName: {diskname}          
-        - cloudInitNoCloud: 
-            networkData: |
-              ethernets:
-                eth0:
-                  addresses:
-                    - 10.14.221.134/26
-                  gateway4: 10.14.221.129
-              version: 2
-            userData: |-
-              #cloud-config
-              user: cloud-user
-              password: 'a23456'
-              chpasswd: {{ "expire": False }}
-          name: cloudinitdisk
-
-
-"""
+  name: argocd-application-controller-binding
+  namespace: wvmgkp
+subjects:
+  - kind: ServiceAccount
+    name: argocd-argocd-application-controller
+    namespace: wvmtesting
+roleRef:
+  kind: ClusterRole
+  name: admin
+  apiGroup: rbac.authorization.k8s.io
