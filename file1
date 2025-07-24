@@ -1,67 +1,24 @@
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: ClusterRole
 metadata:
-  name: argocd-application-controller-binding
-  namespace: wvmgkp
+  name: argocd-manager
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argocd-manager-binding
 subjects:
   - kind: ServiceAccount
-    name: argocd-argocd-application-controller
-    namespace: wvmtesting
+    name: openshift-gitops-argocd-application-controller
+    namespace: openshift-gitops
+  - kind: ServiceAccount
+    name: openshift-gitops-argocd-repo-server
+    namespace: openshift-gitops
 roleRef:
   kind: ClusterRole
-  name: admin
+  name: argocd-manager
   apiGroup: rbac.authorization.k8s.io
-
-
------------------------------------------------
-
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: argocd-kubevirt-role
-  namespace: wvmgkp
-rules:
-  - apiGroups: ["kubevirt.io"]
-    resources: ["virtualmachines", "virtualmachineinstances", "virtualmachineinstancemigrations", "virtualmachineinstancepresets", "virtualmachineinstancereplicasets"]
-    verbs: ["*"]
-
-  - apiGroups: ["cdi.kubevirt.io"]
-    resources: ["datavolumes"]
-    verbs: ["*"]
---------------------------------------------
-
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: argocd-kubevirt-binding
-  namespace: wvmgkp
-subjects:
-  - kind: ServiceAccount
-    name: argocd-argocd-application-controller
-    namespace: wvmtesting
-roleRef:
-  kind: Role
-  name: argocd-kubevirt-role
-  apiGroup: rbac.authorization.k8s.io
-
-
-----------------------------------------------
-
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: argocd-kubevirt-binding
-  namespace: wvmgkp
-subjects:
-  - kind: ServiceAccount
-    name: argocd-argocd-application-controller
-    namespace: wvmtesting
-  - kind: ServiceAccount
-    name: argocd-repo-server
-    namespace: wvmtesting
-roleRef:
-  kind: Role
-  name: argocd-kubevirt-role
-  apiGroup: rbac.authorization.k8s.io
-
-
