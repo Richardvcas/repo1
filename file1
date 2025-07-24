@@ -1,24 +1,171 @@
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+apiVersion: v2
+kind: Secret
 metadata:
-  name: argocd-manager
-rules:
-  - apiGroups: ["*"]
-    resources: ["*"]
-    verbs: ["*"]
+  name: richard-secret
+  namespace: wvmtesting
+type: Opaque
+data:
+#cloud-config
+runcmd:
+  - 'set -x'
+  - 'sed -i "/# source INSTALL_CLASS/i generate_fbenv" /usr/local/bin/fb-init.sh' 
+  - 'cat /etc/INSTALL_CLASS.new >> /etc/INSTALL_CLASS'
+  - '[[ `/usr/bin/cloud-id` == "nocloud" ]] && [[ -f "/usr/local/bin/fb-init.sh" ]] && /usr/local/bin/fb-init.sh'
+  - 'jpmc-dnf-config configure --get-content-hostname > /tmp/jpmc-dnf-config-original-content-hostname'
+  # lab only
+  # ---------
+  - 'jpmc-dnf-config configure --set-content-hostname=repomirror-lab.jpmchase.net'
+  # set lab DNF mirrorlist hostname aliases
+  - "for host in `curl https://repomirror-lab.jpmchase.net/pulp/content/dnf/sources/lrh9/baseos-x86_64.mirrorlist | awk -F/ '{print $3}'`; do echo 10.240.47.188 $host >> /etc/hosts;done"
+  # reload dnsmasq to pick up the new /etc/hosts entries
+  - 'pgrep dnsmasq && kill -HUP $(pgrep dnsmasq)'
+  # everything else
+  - 'yum install -y sudo'
+# allow password auth
+ssh_pwauth: true
+users:
+  - name: root
+    # ssh-authorized-keys:
+    # m-----1
+    passwd: Welcome1Welcome1
+  - name: richard
+    gecos: richard
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    ssh-authorized-keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC5b+7kwf7DxJ6cJX7nqG/lvuuwUKK24+a1wSN2eoAhfWgcA6WVnjL4SMI90agVwBIJxfLcYiMuTlxysbLoc6gJqs4u0n9ysYoJ9/H4ULgfPq/wHkVwrAO2xe15gzJp4k1nZpfkI2I93xbSU7wkhxKbBuJWsb6v2zqglPoNxmx6Epygq7qlmfma2ipPysD0D4B85UhhptcJe+pDf4NJaVX8UI1Pl3DqAWdjSWSQ1ROTaJySx+GoXAJdlA0IRPKfpIuhhGQOHlahRH5Z9w/+Mw3mPC+SwOmgpRkRYZKfgcGG3dgrJC2ogZ/xEEimBC2SyOL7vdXHKSU2r2mUo+NeHc1iM4mAi0CNc2j1L4S0REdWDPPXPNTRJybSGB7eKcwcDNFj1L1yY/fKzpLKsY3S+CsAubykjH8HtEi7vZZEeSSMviJTluNJP8ikdgclWXL3vDdStVomw6UG8pF9cawcy7f2JLsgsfE0GBXZdRjBv/YMfSMZjZSEz6R0K3wLaFu7aAPMD1SZwIityuX6ZS0WgLmG8e93mYtM2dKi8NpDO3hKzg4vhxiK5LP26yDKh215t2s9Ei5iJc3j8Mfv/aDyy+vq8wJ10vPsbd5rjpcHOtsJUAsb79hswJk1vSHIh+GqiFBLJIdUdDlvauiAmkkT5m+K69fSK8kHrV5eeczzqb9bkQ== richard@GIEGTIVL07646
+write_files:
+  - path: /etc/INSTALL_CLASS.new
+    content: |
+      KSfbuser="root"
+      KSfbhostname="wh-labocp-004.wh2.lab.jpmchase.net"
+      KSfbfqdn="true"
+      KSfbip="10.14.221.134"
+      KSfbnetmask="255.255.255.192"
+      KSfbgateway="10.14.221.129"
+      KSfbdnsns="10.240.47.3 10.240.41.3"
+      KSfbdnssearch="wh2.lab.jpmchase.net"
+      KSlob="GTI"
+      KSregion="Brooklyn"
+      KSsite="lab1"
+      KSnwzone="lab"
+      timezone="UTC"
+      supportTeam="GDEALINUX"
+      KSicpenv="prod"
+      KSenv="dev"
+      KSautomation="icpw"
+      KSgredl="00057"
+      supportTeam="GSO SRVR UNIX"
+      icp_boot_config="false"
+      icp_boot_config_icp_puppet="true"
+      icp_boot_config_icp_puppet_build_script="puppet_run.rb"
+      icp_boot_config_icp_evolven="true"
+      icp_boot_config_icp_powerbroker="true"
+      icp_boot_config_icp_tivoli_itm6="true"
+      icp_boot_config_icp_aim="true"
+      icp_boot_config_icp_fluentd="true"
+      KScohesity="auto"
+      icp_boot_config_icp_crowdstrike="true"
+      icp_boot_config_icp_cida="true"
+      icp_boot_config_icp_cida_node_type="standard"
+      icp_boot_config_icp_cida_template="ucm_auth_security_cida"
+      icp_boot_config_icp_cida_addomain="exchadlab.gielab.jpmchase.net"
+      epv_require_onboarding="false"
+      epv_repave="true"
+      epv_accountType="Shared Interactive"
+      epv_platform="UnixStandalone - Sophia - Root"
+      epv_accountName="root"
+      epv_region="Global"
+      epv_subRegion="Global"
+      epv_networkLocation="LAN"
+      epv_neimId="G024162"
+      epv_locationId="00057"
+      epv_accessGroupName=""
+      sealId="28954"
+      icp_boot_config_remove_root_pub_keys="true"
+hostname: wh-labocp-004
+fqdn: wh-labocp-004.wh2.lab.jpmchase.net
+manage_etc_hosts: true
+
 ---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
 metadata:
-  name: argocd-manager-binding
-subjects:
-  - kind: ServiceAccount
-    name: openshift-gitops-argocd-application-controller
-    namespace: openshift-gitops
-  - kind: ServiceAccount
-    name: openshift-gitops-argocd-repo-server
-    namespace: openshift-gitops
-roleRef:
-  kind: ClusterRole
-  name: argocd-manager
-  apiGroup: rbac.authorization.k8s.io
+  labels:
+    kubevirt.io/vm: wh-labocp-004
+  name: wh-labocp-004
+  namespace: wvmtesting
+spec:
+  dataVolumeTemplates:
+  - metadata:
+      name: vm-rhel9-dv1
+    spec:
+      storage:
+        resources:
+          requests:
+            storage: 110Gi
+        # storageClassName: ocs-storagecluster-ceph-rbd
+        storageClassName: ocs-storagecluster-ceph-rbd-virtualization
+      source:
+        http:
+          url: http://fred11420.gielab.jpmchase.net/images/img_ovlt_rhel_9_9.6.1_2025-07-09-100051.qcow2
+            #registry:
+            #url: docker://fred31420.gielab.jpmchase.net:8443/jpmc/ovlt_rhel_9:9.6.1_2025-07-09-100051
+            #secretRef: fred31420-data-source-secret
+            #certConfigMap: fred31420-tls-certs
+    status: {}
+  running: true
+  template:
+    metadata:
+      labels:
+        kubevirt.io/vm: wh-labocp-004
+    spec:
+      domain:
+        firmware:
+          bootloader:
+            efi:
+              secureBoot: false
+        devices:
+          interfaces:
+            - name: nic-gray-wh-labocp-004
+              bridge: {}
+          disks:
+          - disk:
+              bus: virtio
+            name: vm-rhel9-dv1
+          - disk:
+              bus: virtio
+            name: cloudinitdisk
+        machine:
+          type: ""
+        cpu:
+          cores: 2
+        resources:
+          requests:
+            memory: 8Gi
+      terminationGracePeriodSeconds: 180
+      networks:
+        - name: nic-gray-wh-labocp-004
+          multus:
+            networkName: default/vlan3702
+      volumes:
+      - dataVolume:
+          name: vm-rhel9-dv1
+        name: vm-rhel9-dv1
+      - name: cloudinitdisk
+        cloudInitNoCloud:
+          secretRef:
+            name: richard-secret
+          networkData: |
+            version: 2
+            ethernets:
+              eth0:
+                dhcp4: false
+                addresses:
+                  - 10.14.221.134/26
+                gateway4: 10.14.221.129
+                nameservers:
+                  addresses:
+                    - 10.240.47.3
+                    - 10.240.41.3
+
+
