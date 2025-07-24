@@ -11,3 +11,36 @@ roleRef:
   kind: ClusterRole
   name: admin
   apiGroup: rbac.authorization.k8s.io
+
+
+-----------------------------------------------
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-kubevirt-role
+  namespace: wvmgkp
+rules:
+  - apiGroups: ["kubevirt.io"]
+    resources: ["virtualmachines", "virtualmachineinstances", "virtualmachineinstancemigrations", "virtualmachineinstancepresets", "virtualmachineinstancereplicasets"]
+    verbs: ["*"]
+
+  - apiGroups: ["cdi.kubevirt.io"]
+    resources: ["datavolumes"]
+    verbs: ["*"]
+--------------------------------------------
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-kubevirt-binding
+  namespace: wvmgkp
+subjects:
+  - kind: ServiceAccount
+    name: argocd-argocd-application-controller
+    namespace: wvmtesting
+roleRef:
+  kind: Role
+  name: argocd-kubevirt-role
+  apiGroup: rbac.authorization.k8s.io
+
