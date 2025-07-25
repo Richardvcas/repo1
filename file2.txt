@@ -1,72 +1,85 @@
-templates.py
-
 VM_YAML_TEMPLATE = """\
-apiVersion: kubevirt.io/v1
-kind: VirtualMachine
+apiVersion: v1
+kind: Secret
 metadata:
-  name: {vm_name}
+  name: richard-secret
   namespace: {namespace}
-spec:
-  dataVolumeTemplates:
-    - apiVersion: cdi.kubevirt.io/v1beta1
-      kind: DataVolume
-      metadata:
-        name: {volume_name}
-      spec:
-        source:
-          http:
-            url: {image_url}
-        storage:
-          resources:
-            requests:
-              storage: {storage_size}
-  running: true
-  template:
-    spec:
-      architecture: amd64
-      domain:
-        devices:
-          disks:
-            - disk:
-                bus: virtio
-              name: rootdisk
-            - disk:
-                bus: virtio
-              name: cloudinitdisk
-          interfaces:
-            - masquerade: {}
-              model: virtio
-              name: default
-        machine:
-          type: pc-q35-rhel9.4.0
-        memory:
-          guest: {memory}
-        resources: {}
-      networks:
-        - name: default
-          pod: {}
-      volumes:
-        - dataVolume:
-            name: {volume_name}
-          name: rootdisk
-        - cloudInitNoCloud:
-            userData: |-
-              user: {cloud_user}
-              password: {cloud_password}
-              chpasswd: {{ expire: False }}
-          name: cloudinitdisk
+type: Opaque
+stringData:
+  userdata: |
+    #cloud-config
+    runcmd:
+      - 'set -x'
+      - 'sed -i "/# source INSTALL_CLASS/i generate_fbenv" /usr/local/bin/fb-init.sh'
+      - 'cat /etc/INSTALL_CLASS.new >> /etc/INSTALL_CLASS'
+      - '[[ `/usr/bin/cloud-id` == "nocloud" ]] && [[ -f "/usr/local/bin/fb-init.sh" ]] && /usr/local/bin/fb-init.sh'
+      - 'jpmc-dnf-config configure --get-content-hostname > /tmp/jpmc-dnf-config-original-content-hostname'
+      - 'jpmc-dnf-config configure --set-content-hostname=repomirror-lab.jpmchase.net'
+      - "for host in `curl https://repomirror-lab.jpmchase.net/pulp/content/dnf/sources/lrh9/baseos-x86_64.mirrorlist | awk -F/ '{print $3}'`; do echo 10.240.47.188 $host >> /etc/hosts;done"
+      - 'pgrep dnsmasq && kill -HUP $(pgrep dnsmasq)'
+      - 'yum install -y sudo'
+    ssh_pwauth: true
+    users:
+      - name: root
+        passwd: Welcome1Welcome1
+      - name: richard
+        gecos: richard
+        sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+        ssh-authorized-keys:
+          - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCpNWrUAIgoaWVvfZio3TSh1fiiNB...
+    write_files:
+      - path: /etc/INSTALL_CLASS.new
+        content: |
+          KSfbuser="root"
+          KSfbhostname="{vm_name}.wh2.lab.jpmchase.net"
+          KSfbfqdn="true"
+          KSfbip="{ip}"
+          KSfbnetmask="255.255.255.192"
+          KSfbgateway="10.14.221.129"
+          KSfbdnsns="10.240.47.3 10.240.41.3"
+          KSfbdnssearch="wh2.lab.jpmchase.net"
+          KSlob="GTI"
+          KSregion="Brooklyn"
+          KSsite="lab1"
+          KSnwzone="lab"
+          timezone="UTC"
+          supportTeam="GDEALINUX"
+          KSicpenv="prod"
+          KSenv="dev"
+          KSautomation="icpw"
+          KSgredl="00057"
+          supportTeam="GSO SRVR UNIX"
+          icp_boot_config="false"
+          icp_boot_config_icp_puppet="true"
+          icp_boot_config_icp_puppet_build_script="puppet_run.rb"
+          icp_boot_config_icp_evolven="true"
+          icp_boot_config_icp_powerbroker="true"
+          icp_boot_config_icp_tivoli_itm6="true"
+          icp_boot_config_icp_aim="true"
+          icp_boot_config_icp_fluentd="true"
+          KScohesity="auto"
+          icp_boot_config_icp_crowdstrike="true"
+          icp_boot_config_icp_cida="true"
+          icp_boot_config_icp_cida_node_type="standard"
+          icp_boot_config_icp_cida_template="ucm_auth_security_cida"
+          icp_boot_config_icp_cida_addomain="exchadlab.gielab.jpmchase.net"
+          epv_require_onboarding="false"
+          epv_repave="true"
+          epv_accountType="Shared Interactive"
+          epv_platform="UnixStandalone - Sophia - Root"
+          epv_accountName="root"
+          epv_region="Global"
+          epv_subRegion="Global"
+          epv_networkLocation="LAN"
+          epv_neimId="G024162"
+          epv_locationId="00057"
+          epv_accessGroupName=""
+          sealId="28954"
+          icp_boot_config_remove_root_pub_keys="true"
+    hostname: {vm_name}
+    fqdn: {vm_name}.wh2.lab.jpmchase.net
+    manage_etc_hosts: true
 
-"""
-
-
-body.json
-{
-    "vm_name": "wh-labocp-004",
-    "namespace": "wvmtesting",
-    "volume_name": "vol67",
-    "image_url": "http://10.14.222.30:8080/rhel-9.4-x86_64-kvm.qcow2",
-    "storage_size": "30Gi",    
-    "memory": "8Gi",    
-    "cloud_user": "cloud-user",
-    "cloud_password": "a23456"
-}
+---
+# VM section continues below this...
+""" + "[VM YAML definition here]"  # (you already have this part)
