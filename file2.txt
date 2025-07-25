@@ -26,8 +26,8 @@ stringData:
         gecos: richard
         sudo: ["ALL=(ALL) NOPASSWD:ALL"]
         ssh-authorized-keys:
-          - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCpNWrUAIgoaWVvfZio3TSh1fiiNB...
-    write_files:
+          - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCpNWrUAIgoaWVvfZio3TSh1fiiNBpyy9IcZeQf0GdjijrtKYbEDubUvtFMLBt9XPeWW9U/yymT817B38eUvQPcMhMFpdoeEXdwVPbFUbvDSR1Ft2kU2L4aTQbVFEBnpfNJT4+QnFN306c0EvUnN+cqeuVFdhSKaZ7ERRZ6EgFPeQw2D54lEok7JR/PNK+t2lIgjK5cM0pLNlBcjs8j1JKV8U4urBxRQkM0HWC0msUK/Bx8+f7olIUJ0z0Z0P9GaAkSKM/rMfxgA1WhlH/B6lNCi3WqJ/GueuU/8X8XFOdXccKA0u6Ma4kEC1JY8mDFOiOEFoI5TCJLjtJZ+b9W934bE/ElT6Z5verA3kFi7Y95FG6VUlJyu6/BnKDbDnWbXqOgKjxKX7qIDKRol0fS0jiR7se1qIKfXgW5fAEtG0dZAhwydyLV1O/YmKqmPQ58uklvmyD/vEBIBAHVuFGsed30KZTkoGtljFYoHN9YSMpPUDDWpwOCBC4MGO5jyynQ1q8= richard@GIEGTIVL07646
+write_files:
       - path: /etc/INSTALL_CLASS.new
         content: |
           KSfbuser="root"
@@ -81,5 +81,87 @@ stringData:
     manage_etc_hosts: true
 
 ---
-# VM section continues below this...
-""" + "[VM YAML definition here]"  # (you already have this part)
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  labels:
+    kubevirt.io/vm: {vm_name}
+  name: {vm_name}
+  namespace: {namespace}
+spec:
+  dataVolumeTemplates:
+  - metadata:
+      name: {volume_name}
+    spec:
+      storage:
+        resources:
+          requests:
+            storage: {storage_size}
+        # storageClassName: ocs-storagecluster-ceph-rbd
+        storageClassName: ocs-storagecluster-ceph-rbd-virtualization
+      source:
+        http:
+          url: http://fred11420.gielab.jpmchase.net/images/img_ovlt_rhel_9_9.6.1_2025-07-09-100051.qcow2
+            #registry:
+            #url: docker://fred31420.gielab.jpmchase.net:8443/jpmc/ovlt_rhel_9:9.6.1_2025-07-09-100051
+            #secretRef: fred31420-data-source-secret
+            #certConfigMap: fred31420-tls-certs    
+  running: true
+  template:
+    metadata:
+      labels:
+        kubevirt.io/vm: {vm_name}
+    spec:
+      domain:
+        firmware:
+          bootloader:
+            efi:
+              secureBoot: false
+        devices:
+          interfaces:
+            - name: {interface}
+              bridge: {{}}
+          disks:
+          - disk:
+              bus: virtio
+            name: {volume_name}
+          - disk:
+              bus: virtio
+            name: cloudinitdisk
+        machine:
+          type: ""
+        cpu:
+          cores: 2
+        resources:
+          requests:
+            memory: 8Gi
+      terminationGracePeriodSeconds: 180
+      networks:
+        - name: {interace}
+          multus:
+            networkName: default/vlan3702
+      volumes:
+      - dataVolume:
+          name: {volume}
+        name: {volume}
+      - name: cloudinitdisk
+        cloudInitNoCloud:
+          secretRef:
+            name: richard-secret
+          networkData: |
+            version: 2
+            ethernets:
+              eth0:
+                dhcp4: false
+                addresses:
+                  - {ip}/26
+                gateway4: 10.14.221.129
+                nameservers:
+                  addresses:
+                    - 10.240.47.3
+                    - 10.240.41.3
+
+
+
+
+"""
