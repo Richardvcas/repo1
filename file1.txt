@@ -1,6 +1,203 @@
+template.py
+----------
+VM_YAML_TEMPLATE = """\
+apiVersion: v1
+kind: Secret
+metadata:
+  name: richard-secret
+  namespace: {namespace}
+type: Opaque
+data:
+#cloud-config
+runcmd:
+  - 'set -x'
+  - 'sed -i "/# source INSTALL_CLASS/i generate_fbenv" /usr/local/bin/fb-init.sh' 
+  - 'cat /etc/INSTALL_CLASS.new >> /etc/INSTALL_CLASS'
+  - '[[ `/usr/bin/cloud-id` == "nocloud" ]] && [[ -f "/usr/local/bin/fb-init.sh" ]] && /usr/local/bin/fb-init.sh'
+  - 'jpmc-dnf-config configure --get-content-hostname > /tmp/jpmc-dnf-config-original-content-hostname'
+  # lab only
+  # ---------
+  - 'jpmc-dnf-config configure --set-content-hostname=repomirror-lab.jpmchase.net'
+  # set lab DNF mirrorlist hostname aliases
+  - "for host in `curl https://repomirror-lab.jpmchase.net/pulp/content/dnf/sources/lrh9/baseos-x86_64.mirrorlist | awk -F/ '{print $3}'`; do echo 10.240.47.188 $host >> /etc/hosts;done"
+  # reload dnsmasq to pick up the new /etc/hosts entries
+  - 'pgrep dnsmasq && kill -HUP $(pgrep dnsmasq)'
+  # everything else
+  - 'yum install -y sudo'
+# allow password auth
+ssh_pwauth: true
+users:
+  - name: root
+    # ssh-authorized-keys:
+    # m-----1
+    passwd: Welcome1Welcome1
+  - name: richard
+    gecos: richard
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    ssh-authorized-keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCpNWrUAIgoaWVvfZio3TSh1fiiNBpyy9IcZeQf0GdjijrtKYbEDubUvtFMLBt9XPeWW9U/yymT817B38eUvQPcMhMFpdoeEXdwVPbFUbvDSR1Ft2kU2L4aTQbVFEBnpfNJT4+QnFN306c0EvUnN+cqeuVFdhSKaZ7ERRZ6EgFPeQw2D54lEok7JR/PNK+t2lIgjK5cM0pLNlBcjs8j1JKV8U4urBxRQkM0HWC0msUK/Bx8+f7olIUJ0z0Z0P9GaAkSKM/rMfxgA1WhlH/B6lNCi3WqJ/GueuU/8X8XFOdXccKA0u6Ma4kEC1JY8mDFOiOEFoI5TCJLjtJZ+b9W934bE/ElT6Z5verA3kFi7Y95FG6VUlJyu6/BnKDbDnWbXqOgKjxKX7qIDKRol0fS0jiR7se1qIKfXgW5fAEtG0dZAhwydyLV1O/YmKqmPQ58uklvmyD/vEBIBAHVuFGsed30KZTkoGtljFYoHN9YSMpPUDDWpwOCBC4MGO5jyynQ1q8= richard@GIEGTIVL07646
+write_files:
+  - path: /etc/INSTALL_CLASS.new
+    content: |
+      KSfbuser="root"
+      KSfbhostname="{vm_name}.wh2.lab.jpmchase.net"
+      KSfbfqdn="true"
+      KSfbip="{ip}"
+      KSfbnetmask="255.255.255.192"
+      KSfbgateway="10.14.221.129"
+      KSfbdnsns="10.240.47.3 10.240.41.3"
+      KSfbdnssearch="wh2.lab.jpmchase.net"
+      KSlob="GTI"
+      KSregion="Brooklyn"
+      KSsite="lab1"
+      KSnwzone="lab"
+      timezone="UTC"
+      supportTeam="GDEALINUX"
+      KSicpenv="prod"
+      KSenv="dev"
+      KSautomation="icpw"
+      KSgredl="00057"
+      supportTeam="GSO SRVR UNIX"
+      icp_boot_config="false"
+      icp_boot_config_icp_puppet="true"
+      icp_boot_config_icp_puppet_build_script="puppet_run.rb"
+      icp_boot_config_icp_evolven="true"
+      icp_boot_config_icp_powerbroker="true"
+      icp_boot_config_icp_tivoli_itm6="true"
+      icp_boot_config_icp_aim="true"
+      icp_boot_config_icp_fluentd="true"
+      KScohesity="auto"
+      icp_boot_config_icp_crowdstrike="true"
+      icp_boot_config_icp_cida="true"
+      icp_boot_config_icp_cida_node_type="standard"
+      icp_boot_config_icp_cida_template="ucm_auth_security_cida"
+      icp_boot_config_icp_cida_addomain="exchadlab.gielab.jpmchase.net"
+      epv_require_onboarding="false"
+      epv_repave="true"
+      epv_accountType="Shared Interactive"
+      epv_platform="UnixStandalone - Sophia - Root"
+      epv_accountName="root"
+      epv_region="Global"
+      epv_subRegion="Global"
+      epv_networkLocation="LAN"
+      epv_neimId="G024162"
+      epv_locationId="00057"
+      epv_accessGroupName=""
+      sealId="28954"
+      icp_boot_config_remove_root_pub_keys="true"
+hostname: {vm_name}
+fqdn: {vm_name}.wh2.lab.jpmchase.net
+manage_etc_hosts: true
+
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  labels:
+    kubevirt.io/vm: {vm_name}
+  name: {vm_name}
+  namespace: {namespace}
+spec:
+  dataVolumeTemplates:
+  - metadata:
+      name: {volume_name}
+    spec:
+      storage:
+        resources:
+          requests:
+            storage: {storage_size}
+        # storageClassName: ocs-storagecluster-ceph-rbd
+        storageClassName: ocs-storagecluster-ceph-rbd-virtualization
+      source:
+        http:
+          url: http://fred11420.gielab.jpmchase.net/images/img_ovlt_rhel_9_9.6.1_2025-07-09-100051.qcow2
+            #registry:
+            #url: docker://fred31420.gielab.jpmchase.net:8443/jpmc/ovlt_rhel_9:9.6.1_2025-07-09-100051
+            #secretRef: fred31420-data-source-secret
+            #certConfigMap: fred31420-tls-certs
+    status: {}
+  running: true
+  template:
+    metadata:
+      labels:
+        kubevirt.io/vm: {vm_name}
+    spec:
+      domain:
+        firmware:
+          bootloader:
+            efi:
+              secureBoot: false
+        devices:
+          interfaces:
+            - name: {interface}
+              bridge: {}
+          disks:
+          - disk:
+              bus: virtio
+            name: {volume_name}
+          - disk:
+              bus: virtio
+            name: cloudinitdisk
+        machine:
+          type: ""
+        cpu:
+          cores: 2
+        resources:
+          requests:
+            memory: 8Gi
+      terminationGracePeriodSeconds: 180
+      networks:
+        - name: {interace}
+          multus:
+            networkName: default/vlan3702
+      volumes:
+      - dataVolume:
+          name: {volume}
+        name: {volume}
+      - name: cloudinitdisk
+        cloudInitNoCloud:
+          secretRef:
+            name: richard-secret
+          networkData: |
+            version: 2
+            ethernets:
+              eth0:
+                dhcp4: false
+                addresses:
+                  - {ip}/26
+                gateway4: 10.14.221.129
+                nameservers:
+                  addresses:
+                    - 10.240.47.3
+                    - 10.240.41.3
+
+
+
+
+"""
+
+body.json
+{
+    "vm_name": "wh-labocp-009",
+    "namespace": "wvmtesting",
+    "volume_name": "rhel8root009disk",
+    "image_url": "http://10.14.222.30:8080/rhel-8.10-x86_64-kvm.qcow2",
+    "storage_size": "30Gi",  
+    "status": "true",
+    "cpu": "1",  
+    "memory": "4Gi",    
+    "diskname": "appdata009",
+    "interface": "nic-gray-wh-labocp-009",
+    "ip": "10.14.221.139/26",
+    "cloud_user": "cloud-user",
+    "cloud_password": "a23456"
+}
+
+-------------
 routes.py
+import os
 from flask import Flask, request, jsonify
-from .utils import render_vm_yaml, save_yaml_to_file, push_yaml_to_git
+from .utils import render_vm_yaml, save_yaml_to_file, push_yaml_to_git, remove_yaml_from_git
 
 app = Flask(__name__)
 
@@ -17,94 +214,39 @@ def vm_request():
 
     required_fields = [
         "vm_name", "namespace", "volume_name", "image_url",
-        "storage_size", "memory", "cloud_user", "cloud_password"
+        "storage_size", "status", "cpu", "memory", "diskname", "interface", "ip", "cloud_user", "cloud_password"
     ]
     missing = [f for f in required_fields if f not in data]
     if missing:
         return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
 
     try:
-        # Render YAML
+        
         yaml_content = render_vm_yaml(data)
 
-        # Save to local file
+        
         filename = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{data['vm_name']}.yaml"
         save_yaml_to_file(yaml_content, filename)
 
         # Push to GitLab
-        push_yaml_to_git(filename)
+        push_yaml_to_git(filename,data["namespace"])
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
     return jsonify({"status": "accepted", "details": data}), 200
 
-----------------------------------------------------------------------
+@app.route("/api/vm-delete", methods=["POST"])
+def vm_delete():
+    data = request.get_json()
+    if not data or "vm_name" not in data:
+        return jsonify({"error": "Missing vm_name"}), 400
 
-utils.py
-import os
-import shutil
-import requests
-import git
-from .templates import VM_YAML_TEMPLATE
+    try:
+        yaml_filename = f"{data['vm_name']}.yaml"
+        yaml_path = os.path.join("C:\\Users\\V849212\\Documents\\vm_api_project\\data", yaml_filename)
+        remove_yaml_from_git(yaml_path)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-GIT_USERNAME = "V849212"
-GIT_PASSWORD = "DigitalWorld@2025"
-#GIT_REPO_URL = f"https://{GIT_USERNAME}:{GIT_PASSWORD}@gitlab.lab.jpmchase.net/V849212/vm-auto.git"
-GIT_REPO_URL = f"https://gitlab.lab.jpmchase.net/V849212/vm-auto.git"
-
-
-
-LOCAL_YAML_FOLDER = r"C:\Users\V849212\Documents\vm_api_project\data"
-
-def render_vm_yaml(user_input):
-    return VM_YAML_TEMPLATE.format(
-        vm_name=user_input["vm_name"],
-        namespace=user_input["namespace"],
-        volume_name=user_input["volume_name"],
-        image_url=user_input["image_url"],
-        storage_size=user_input["storage_size"],
-        memory=user_input["memory"],
-        cloud_user=user_input["cloud_user"],
-        cloud_password=user_input["cloud_password"]
-    )
-
-def save_yaml_to_file(content, filename):
-    
-    full_path = os.path.join(LOCAL_YAML_FOLDER, filename)
-    with open(full_path, "w") as f:
-        f.write(content)
-    return full_path
-
-def push_yaml_to_git(yaml_file_path):
-#    response = requests.get('https://gitlab.lab.jpmchase.net/V849212/vm-project.git', verify=False)
-    repo_dir = r"C:\Users\V849212\Documents\vm_api_project\repo_clonenew"     
-    manifests_dir = "manifests"
-
-    if os.path.exists(repo_dir):
-        shutil.rmtree(repo_dir)
-
-    os.environ['GIT_SSL_NO_VERIFY'] = 'true'
-    repo = git.Repo.clone_from(GIT_REPO_URL, repo_dir)
-
-    
-    # Example: C:\Users\V849212\Documents\vm_api_project\data\vm67.yaml
-    local_file_full_path = yaml_file_path
-
-    
-    dest_path = os.path.join(repo_dir, manifests_dir, os.path.basename(local_file_full_path))
-    shutil.copyfile(local_file_full_path, dest_path)
-
-    repo.index.add([dest_path])
-    repo.index.commit("Automated VM YAML push")
-    repo.remote(name="origin").push()
-
-
-
-Use bodydelete.json deleting
-Use body.json for pushing
-vm_name : wvm-004
-
-the above two programs i have
-
-if i call using curl curl -X POST http://localhost:5000/api/vm-request -H "Content-Type: application/json" -d @bodydelete.json then i want to delete the file wvm-004.yaml file from repositoyr the above code is like pushing yaml to gitlab right the same way remove file not permantly like we can use git rm --cached C:\Users\V849212\Documents\vm_api_project\data and delete the file from gitlab hope you understand above code is pushing my file from local directory to gitlab right, not i want to remove from gitlab
+    return jsonify({"status": "deleted", "vm_name": data["vm_name"]}), 200
