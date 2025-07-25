@@ -1,80 +1,91 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: wh-labocp-002-cloud-init
-  namespace: linuxeng
+  name: richard-ch
+  namespace: wvmtesting
 type: Opaque
 stringData:
   userdata: |
-    #cloud-config
-    runcmd:
-      - 'set -x'
-      - 'sed -i "/# source INSTALL_CLASS/i generate_fbenv" /usr/local/bin/fb-init.sh'
-      - 'cat /etc/INSTALL_CLASS.new >> /etc/INSTALL_CLASS'
-      - '[[ `/usr/bin/cloud-id` == "nocloud" ]] && [[ -f "/usr/local/bin/fb-init.sh" ]] && /usr/local/bin/fb-init.sh'
-      - 'jpmc-dnf-config configure --get-content-hostname > /tmp/jpmc-dnf-config-original-content-hostname'
-      - 'jpmc-dnf-config configure --set-content-hostname=repomirror-lab.jpmchase.net'
-      - "for host in `curl https://repomirror-lab.jpmchase.net/pulp/content/dnf/sources/lrh9/baseos-x86_64.mirrorlist | awk -F/ '{print $3}'`; do echo 10.240.47.188 $host >> /etc/hosts;done"
-      - 'pgrep dnsmasq && kill -HUP $(pgrep dnsmasq)'
-      - 'yum install -y sudo'
-    ssh_pwauth: true
-    users:
-      - name: root
-        passwd: Welcome1Welcome1
-      - name: arul
-        gecos: arul
-        sudo: ["ALL=(ALL) NOPASSWD:ALL"]
-        ssh-authorized-keys:
-          - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDIaE9KCal1fjdL/BdxIz191EnF1V7fnM+wv5G5ogSPZnWR3d3ksbMPq2CW2S0C9KouH/60nImIPx3IXofDiF9lBvFxJ5vmpaLT0ssciQXP+vSH6kSNbCcd6WQLSA5cKbQ2sGQCXC8lfPJpSO8CoXYvBtmj2t0uRMTYfKf4JYM8Td7VzPfQBNHGo7sUQ1TWn8TL+DJNj8WtyEVQDD8tS72Qh6DET6WIxCJHK2fjsBonsQkKwq6RcoxZLDLoPH5czvwbDB2lDpV4xjDRjc52f9yOxKrZewX2uEOs/Ouu4agf+fWO+KanF2KIMWCP2+k5Qh52gMMV1u07I0LcYwFYpOWUgXR5GYgfulIEt7YubM+JYgqn46du4wB5x/r/n1tmeliE8MPa2pD1dZpJMAi2nBGLIMVyFgleezBwpheaxIVEu0gXkVt9TbHd5AM9c0NZEtZY/2FzZ5mYBcatjITuhBzYOUZuckjOJweWO7gtCJ830ncDNF2cgk7LIMQaEEJg/Ss= arul@GIEGTIVL07646
-    write_files:
-      - path: /etc/INSTALL_CLASS.new
-        content: |
-          KSfbuser="root"
-          KSfbhostname="wh-labocp-009.wh2.lab.jpmchase.net"
-          KSfbfqdn="true"
-          KSfbip="10.14.221.139"
-          KSfbnetmask="255.255.255.192"
-          KSfbgateway="10.14.221.129"
-          KSfbdnsns="10.240.47.3 10.240.41.3"
-          KSfbdnssearch="wh2.lab.jpmchase.net"
-          KSlob="GTI"
-          KSregion="Brooklyn"
-          KSsite="lab1"
-          KSnwzone="lab"
-          timezone="UTC"
-          supportTeam="GDEALINUX"
-          KSicpenv="prod"
-          KSenv="dev"
-          KSautomation="icpw"
-          KSgredl="00057"
-          supportTeam="GSO SRVR UNIX"
-          icp_boot_config="false"
-          icp_boot_config_icp_puppet="true"
-          icp_boot_config_icp_puppet_build_script="puppet_run.rb"
-          icp_boot_config_icp_evolven="true"
-          icp_boot_config_icp_powerbroker="true"
-          icp_boot_config_icp_tivoli_itm6="true"
-          icp_boot_config_icp_aim="true"
-          icp_boot_config_icp_fluentd="true"
-          KScohesity="auto"
-          icp_boot_config_icp_crowdstrike="true"
-          icp_boot_config_icp_cida="true"
-          icp_boot_config_icp_cida_node_type="standard"
-          icp_boot_config_icp_cida_template="ucm_auth_security_cida"
-          icp_boot_config_icp_cida_addomain="exchadlab.gielab.jpmchase.net"
-          epv_require_onboarding="false"
-          epv_repave="true"
-          epv_accountType="Shared Interactive"
-          epv_platform="UnixStandalone - Sophia - Root"
-          epv_accountName="root"
-          epv_region="Global"
-          epv_subRegion="Global"
-          epv_networkLocation="LAN"
-          epv_neimId="G024162"
-          epv_locationId="00057"
-          epv_accessGroupName=""
-          sealId="28954"
-          icp_boot_config_remove_root_pub_keys="true"
-    hostname: wh-labocp-009
-    fqdn: wh-labocp-009.wh2.lab.jpmchase.net
-    manage_etc_hosts: true
+#cloud-config
+runcmd:
+  - 'set -x'
+  - 'sed -i "/# source INSTALL_CLASS/i generate_fbenv" /usr/local/bin/fb-init.sh' 
+  - 'cat /etc/INSTALL_CLASS.new >> /etc/INSTALL_CLASS'
+  - '[[ `/usr/bin/cloud-id` == "nocloud" ]] && [[ -f "/usr/local/bin/fb-init.sh" ]] && /usr/local/bin/fb-init.sh'
+  - 'jpmc-dnf-config configure --get-content-hostname > /tmp/jpmc-dnf-config-original-content-hostname'
+  # lab only
+  # ---------
+  - 'jpmc-dnf-config configure --set-content-hostname=repomirror-lab.jpmchase.net'
+  # set lab DNF mirrorlist hostname aliases
+  - "for host in `curl https://repomirror-lab.jpmchase.net/pulp/content/dnf/sources/lrh9/baseos-x86_64.mirrorlist | awk -F/ '{print $3}'`; do echo 10.240.47.188 $host >> /etc/hosts;done"
+  # reload dnsmasq to pick up the new /etc/hosts entries
+  - 'pgrep dnsmasq && kill -HUP $(pgrep dnsmasq)'
+  # everything else
+  - 'yum install -y sudo'
+# allow password auth
+ssh_pwauth: true
+users:
+  - name: root
+    # ssh-authorized-keys:
+    # m-----1
+    passwd: Welcome1Welcome1
+  - name: arul
+    gecos: arul
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    ssh-authorized-keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDIaE9KCal1fjdL/BdxIz191EnF1V7fnM+wv5G5ogSPZnWR3d3ksbMPq2CW2S0C9KouH/60nImIPx3IXofDiF9lBvFxJ5vmpaLT0ssciQXP+vSH6kSNbCcd6WQLSA5cKbQ2sGQCXC8lfPJpSO8CoXYvBtmj2t0uRMTYfKf4JYM8Td7VzPfQBNHGo7sUQ1TWn8TL+DJNj8WtyEVQDD8tS72Qh6DET6WIxCJHK2fjsBonsQkKwq6RcoxZLDLoPH5czvwbDB2lDpV4xjDRjc52f9yOxKrZewX2uEOs/Ouu4agf+fWO+KanF2KIMWCP2+k5Qh52gMMV1u07I0LcYwFYpOWUgXR5GYgfulIEt7YubM+JYgqn46du4wB5x/r/n1tmeliE8MPa2pD1dZpJMAi2nBGLIMVyFgleezBwpheaxIVEu0gXkVt9TbHd5AM9c0NZEtZY/2FzZ5mYBcatjITuhBzYOUZuckjOJweWO7gtCJ830ncDNF2cgk7LIMQaEEJg/Ss= arul@GIEGTIVL07646
+write_files:
+  - path: /etc/INSTALL_CLASS.new
+    content: |
+      KSfbuser="root"
+      KSfbhostname="wh-labocp-009.wh2.lab.jpmchase.net"
+      KSfbfqdn="true"
+      KSfbip="10.14.221.139"
+      KSfbnetmask="255.255.255.192"
+      KSfbgateway="10.14.221.129"
+      KSfbdnsns="10.240.47.3 10.240.41.3"
+      KSfbdnssearch="wh2.lab.jpmchase.net"
+      KSlob="GTI"
+      KSregion="Brooklyn"
+      KSsite="lab1"
+      KSnwzone="lab"
+      timezone="UTC"
+      supportTeam="GDEALINUX"
+      KSicpenv="prod"
+      KSenv="dev"
+      KSautomation="icpw"
+      KSgredl="00057"
+      supportTeam="GSO SRVR UNIX"
+      icp_boot_config="false"
+      icp_boot_config_icp_puppet="true"
+      icp_boot_config_icp_puppet_build_script="puppet_run.rb"
+      icp_boot_config_icp_evolven="true"
+      icp_boot_config_icp_powerbroker="true"
+      icp_boot_config_icp_tivoli_itm6="true"
+      icp_boot_config_icp_aim="true"
+      icp_boot_config_icp_fluentd="true"
+      KScohesity="auto"
+      icp_boot_config_icp_crowdstrike="true"
+      icp_boot_config_icp_cida="true"
+      icp_boot_config_icp_cida_node_type="standard"
+      icp_boot_config_icp_cida_template="ucm_auth_security_cida"
+      icp_boot_config_icp_cida_addomain="exchadlab.gielab.jpmchase.net"
+      epv_require_onboarding="false"
+      epv_repave="true"
+      epv_accountType="Shared Interactive"
+      epv_platform="UnixStandalone - Sophia - Root"
+      epv_accountName="root"
+      epv_region="Global"
+      epv_subRegion="Global"
+      epv_networkLocation="LAN"
+      epv_neimId="G024162"
+      epv_locationId="00057"
+      epv_accessGroupName=""
+      sealId="28954"
+      icp_boot_config_remove_root_pub_keys="true"
+hostname: wh-labocp-009
+fqdn: wh-labocp-009.wh2.lab.jpmchase.net
+manage_etc_hosts: true
+
+
+the above i ran oc apply -f filename.yaml
