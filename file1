@@ -1,10 +1,4 @@
-apiVersion: v2
-kind: Secret
-metadata:
-  name: richard-secret
-  namespace: wvmtesting
-type: Opaque
-data:
+cat wh-labocp-002-cloud-init.yaml
 #cloud-config
 runcmd:
   - 'set -x'
@@ -25,21 +19,21 @@ runcmd:
 ssh_pwauth: true
 users:
   - name: root
-    # ssh-authorized-keys:
+    # mkpasswd -m sha-512 --rounds=6
     # m-----1
-    passwd: Welcome1Welcome1
-  - name: richard
-    gecos: richard
+    hashed_passwd: $6$rounds=1000$DiGeA4uGWXSuaEz9$KyunUR3wwSwIarSxHk6MXmgpXUVZIknrsyCPYnHrZMg2R9PCxr0XYxqi.Ig6IUZXORupSs2hp46FhJOb2bnjl1
+  - name: wilmauser
+    gecos: Wilma User
     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
     ssh-authorized-keys:
-      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC5b+7kwf7DxJ6cJX7nqG/lvuuwUKK24+a1wSN2eoAhfWgcA6WVnjL4SMI90agVwBIJxfLcYiMuTlxysbLoc6gJqs4u0n9ysYoJ9/H4ULgfPq/wHkVwrAO2xe15gzJp4k1nZpfkI2I93xbSU7wkhxKbBuJWsb6v2zqglPoNxmx6Epygq7qlmfma2ipPysD0D4B85UhhptcJe+pDf4NJaVX8UI1Pl3DqAWdjSWSQ1ROTaJySx+GoXAJdlA0IRPKfpIuhhGQOHlahRH5Z9w/+Mw3mPC+SwOmgpRkRYZKfgcGG3dgrJC2ogZ/xEEimBC2SyOL7vdXHKSU2r2mUo+NeHc1iM4mAi0CNc2j1L4S0REdWDPPXPNTRJybSGB7eKcwcDNFj1L1yY/fKzpLKsY3S+CsAubykjH8HtEi7vZZEeSSMviJTluNJP8ikdgclWXL3vDdStVomw6UG8pF9cawcy7f2JLsgsfE0GBXZdRjBv/YMfSMZjZSEz6R0K3wLaFu7aAPMD1SZwIityuX6ZS0WgLmG8e93mYtM2dKi8NpDO3hKzg4vhxiK5LP26yDKh215t2s9Ei5iJc3j8Mfv/aDyy+vq8wJ10vPsbd5rjpcHOtsJUAsb79hswJk1vSHIh+GqiFBLJIdUdDlvauiAmkkT5m+K69fSK8kHrV5eeczzqb9bkQ== richard@GIEGTIVL07646
+      - <<< YOUR SSH KEY HERE >>>
 write_files:
   - path: /etc/INSTALL_CLASS.new
     content: |
       KSfbuser="root"
-      KSfbhostname="wh-labocp-004.wh2.lab.jpmchase.net"
+      KSfbhostname="wh-labocp-002.wh2.lab.jpmchase.net"
       KSfbfqdn="true"
-      KSfbip="10.14.221.134"
+      KSfbip="110.14.221.132"
       KSfbnetmask="255.255.255.192"
       KSfbgateway="10.14.221.129"
       KSfbdnsns="10.240.47.3 10.240.41.3"
@@ -82,22 +76,22 @@ write_files:
       epv_accessGroupName=""
       sealId="28954"
       icp_boot_config_remove_root_pub_keys="true"
-hostname: wh-labocp-004
-fqdn: wh-labocp-004.wh2.lab.jpmchase.net
+hostname: wh-labocp-002
+fqdn: wh-labocp-002.wh2.lab.jpmchase.net
 manage_etc_hosts: true
 
----
+
+
 apiVersion: kubevirt.io/v1
 kind: VirtualMachine
 metadata:
   labels:
-    kubevirt.io/vm: wh-labocp-004
-  name: wh-labocp-004
-  namespace: wvmtesting
+    kubevirt.io/vm: wh-labocp-002
+  name: wh-labocp-002
 spec:
   dataVolumeTemplates:
   - metadata:
-      name: vm-rhel9-dv1
+      name: vm-fred3-dv1
     spec:
       storage:
         resources:
@@ -117,7 +111,7 @@ spec:
   template:
     metadata:
       labels:
-        kubevirt.io/vm: wh-labocp-004
+        kubevirt.io/vm: wh-labocp-002
     spec:
       domain:
         firmware:
@@ -126,12 +120,12 @@ spec:
               secureBoot: false
         devices:
           interfaces:
-            - name: nic-gray-wh-labocp-004
+            - name: nic-gray-wh-labocp-002
               bridge: {}
           disks:
           - disk:
               bus: virtio
-            name: vm-rhel9-dv1
+            name: vm-fred3-dv1
           - disk:
               bus: virtio
             name: cloudinitdisk
@@ -144,28 +138,26 @@ spec:
             memory: 8Gi
       terminationGracePeriodSeconds: 180
       networks:
-        - name: nic-gray-wh-labocp-004
+        - name: nic-gray-wh-labocp-002
           multus:
             networkName: default/vlan3702
       volumes:
       - dataVolume:
-          name: vm-rhel9-dv1
-        name: vm-rhel9-dv1
+          name: vm-fred3-dv1
+        name: vm-fred3-dv1
       - name: cloudinitdisk
         cloudInitNoCloud:
           secretRef:
-            name: richard-secret
-          networkData: |
+            name: wh-labocp-002-cloud-init
+          networkData: |
             version: 2
             ethernets:
               eth0:
                 dhcp4: false
                 addresses:
-                  - 10.14.221.134/26
+                  - 10.14.221.132/26
                 gateway4: 10.14.221.129
                 nameservers:
                   addresses:
                     - 10.240.47.3
                     - 10.240.41.3
-
-
