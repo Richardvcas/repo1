@@ -1,4 +1,10 @@
-cat wh-labocp-002-cloud-init.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: richard-secret
+  namespace: wvmtesting
+type: Opaque
+data:
 #cloud-config
 runcmd:
   - 'set -x'
@@ -19,11 +25,11 @@ runcmd:
 ssh_pwauth: true
 users:
   - name: root
-    # mkpasswd -m sha-512 --rounds=6
+    # ssh-authorized-keys:
     # m-----1
-    hashed_passwd: $6$rounds=1000$DiGeA4uGWXSuaEz9$KyunUR3wwSwIarSxHk6MXmgpXUVZIknrsyCPYnHrZMg2R9PCxr0XYxqi.Ig6IUZXORupSs2hp46FhJOb2bnjl1
-  - name: wilmauser
-    gecos: Wilma User
+    passwd: Welcome1Welcome1
+  - name: richard
+    gecos: richard
     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
     ssh-authorized-keys:
       - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCpNWrUAIgoaWVvfZio3TSh1fiiNBpyy9IcZeQf0GdjijrtKYbEDubUvtFMLBt9XPeWW9U/yymT817B38eUvQPcMhMFpdoeEXdwVPbFUbvDSR1Ft2kU2L4aTQbVFEBnpfNJT4+QnFN306c0EvUnN+cqeuVFdhSKaZ7ERRZ6EgFPeQw2D54lEok7JR/PNK+t2lIgjK5cM0pLNlBcjs8j1JKV8U4urBxRQkM0HWC0msUK/Bx8+f7olIUJ0z0Z0P9GaAkSKM/rMfxgA1WhlH/B6lNCi3WqJ/GueuU/8X8XFOdXccKA0u6Ma4kEC1JY8mDFOiOEFoI5TCJLjtJZ+b9W934bE/ElT6Z5verA3kFi7Y95FG6VUlJyu6/BnKDbDnWbXqOgKjxKX7qIDKRol0fS0jiR7se1qIKfXgW5fAEtG0dZAhwydyLV1O/YmKqmPQ58uklvmyD/vEBIBAHVuFGsed30KZTkoGtljFYoHN9YSMpPUDDWpwOCBC4MGO5jyynQ1q8= richard@GIEGTIVL07646
@@ -31,9 +37,9 @@ write_files:
   - path: /etc/INSTALL_CLASS.new
     content: |
       KSfbuser="root"
-      KSfbhostname="wh-labocp-002.wh2.lab.jpmchase.net"
+      KSfbhostname="wh-labocp-004.wh2.lab.jpmchase.net"
       KSfbfqdn="true"
-      KSfbip="110.14.221.132"
+      KSfbip="10.14.221.134"
       KSfbnetmask="255.255.255.192"
       KSfbgateway="10.14.221.129"
       KSfbdnsns="10.240.47.3 10.240.41.3"
@@ -76,22 +82,22 @@ write_files:
       epv_accessGroupName=""
       sealId="28954"
       icp_boot_config_remove_root_pub_keys="true"
-hostname: wh-labocp-002
-fqdn: wh-labocp-002.wh2.lab.jpmchase.net
+hostname: wh-labocp-004
+fqdn: wh-labocp-004.wh2.lab.jpmchase.net
 manage_etc_hosts: true
 
-
-
+---
 apiVersion: kubevirt.io/v1
 kind: VirtualMachine
 metadata:
   labels:
-    kubevirt.io/vm: wh-labocp-002
-  name: wh-labocp-002
+    kubevirt.io/vm: wh-labocp-004
+  name: wh-labocp-004
+  namespace: wvmtesting
 spec:
   dataVolumeTemplates:
   - metadata:
-      name: vm-fred3-dv1
+      name: vm-rhel134-dv1
     spec:
       storage:
         resources:
@@ -111,7 +117,7 @@ spec:
   template:
     metadata:
       labels:
-        kubevirt.io/vm: wh-labocp-002
+        kubevirt.io/vm: wh-labocp-004
     spec:
       domain:
         firmware:
@@ -120,12 +126,12 @@ spec:
               secureBoot: false
         devices:
           interfaces:
-            - name: nic-gray-wh-labocp-002
+            - name: nic-gray-wh-labocp-004
               bridge: {}
           disks:
           - disk:
               bus: virtio
-            name: vm-fred3-dv1
+            name: vm-rhel134-dv1
           - disk:
               bus: virtio
             name: cloudinitdisk
@@ -138,26 +144,28 @@ spec:
             memory: 8Gi
       terminationGracePeriodSeconds: 180
       networks:
-        - name: nic-gray-wh-labocp-002
+        - name: nic-gray-wh-labocp-004
           multus:
             networkName: default/vlan3702
       volumes:
       - dataVolume:
-          name: vm-fred3-dv1
-        name: vm-fred3-dv1
+          name: vm-rhel134-dv1
+        name: vm-rhel134-dv1
       - name: cloudinitdisk
         cloudInitNoCloud:
           secretRef:
-            name: wh-labocp-002-cloud-init
-          networkData: |
+            name: richard-secret
+          networkData: |
             version: 2
             ethernets:
               eth0:
                 dhcp4: false
                 addresses:
-                  - 10.14.221.132/26
+                  - 10.14.221.134/26
                 gateway4: 10.14.221.129
                 nameservers:
                   addresses:
                     - 10.240.47.3
                     - 10.240.41.3
+
+
