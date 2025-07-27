@@ -86,7 +86,7 @@ name: vm-deployment
 description: Helm chart to deploy VM in OpenShift Virtualization
 version: 0.1.0
 
-
+vm.yaml
 apiVersion: kubevirt.io/v1
 kind: VirtualMachine
 metadata:
