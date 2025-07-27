@@ -1,13 +1,29 @@
+values.yaml
+
+vm_name: myvm
+namespace: gkp
+volume_name: myvm-rootdisk
+diskname: myvm-disk
+image_url: http://10.14.222.30:8080/rhel-8.10-x86_64-kvm.qcow2
+storage_size: 30Gi
+status: true
+cpu: 4
+memory: 8Gi
+interface: default
+ip: 10.14.21.134
+
+
+vm.yaml
+
 apiVersion: kubevirt.io/v1
 kind: VirtualMachine
 metadata:
   name: {{ .Values.vm_name }}
   namespace: {{ .Values.namespace }}
 spec:
-  running: true
   dataVolumeTemplates:
     - metadata:
-        name: {{ .Values.vm_name }}-volume
+        name: {{ .Values.volume_name }}
       spec:
         storage:
           resources:
@@ -17,44 +33,29 @@ spec:
         source:
           http:
             url: {{ .Values.image_url }}
+  running: {{ .Values.status }}
   template:
     metadata:
       labels:
         kubevirt.io/vm: {{ .Values.vm_name }}
     spec:
       domain:
+        ...
         cpu:
           cores: {{ .Values.cpu }}
         resources:
           requests:
             memory: {{ .Values.memory }}
-        devices:
-          disks:
-            - name: rootdisk
-              disk:
-                bus: virtio
-            - name: cloudinitdisk
-              disk:
-                bus: virtio
-            {{- range .Values.volumes }}
-            {{- if .enabled }}
-            - name: {{ .name }}
-              disk:
-                bus: virtio
-            {{- end }}
-            {{- end }}
       networks:
-        - name: default
+        - name: {{ .Values.interface }}
           multus:
             networkName: default/vlan3702
       volumes:
-        - name: rootdisk
-          dataVolume:
-            name: {{ .Values.vm_name }}-volume
+        ...
         - name: cloudinitdisk
           cloudInitNoCloud:
             secretRef:
-              name: {{ .Values.vm_name }}-secret
+              name: richard-secret
             networkData: |
               version: 2
               ethernets:
@@ -67,10 +68,11 @@ spec:
                     addresses:
                       - 10.240.47.3
                       - 10.240.41.3
-        {{- range .Values.volumes }}
-        {{- if .enabled }}
-        - name: {{ .name }}
-          persistentVolumeClaim:
-            claimName: {{ .name }}
-        {{- end }}
-        {{- end }}
+
+
+chart.yaml
+
+apiVersion: v2
+name: vm-deployment
+description: Helm chart to deploy VM in OpenShift Virtualization
+version: 0.1.0
