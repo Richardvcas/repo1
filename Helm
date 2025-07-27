@@ -39,8 +39,7 @@ spec:
       labels:
         kubevirt.io/vm: {{ .Values.vm_name }}
     spec:
-      domain:
-        ...
+      domain:        
         cpu:
           cores: {{ .Values.cpu }}
         resources:
@@ -50,8 +49,7 @@ spec:
         - name: {{ .Values.interface }}
           multus:
             networkName: default/vlan3702
-      volumes:
-        ...
+      volumes:        
         - name: cloudinitdisk
           cloudInitNoCloud:
             secretRef:
