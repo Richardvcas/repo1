@@ -85,3 +85,7 @@ apiVersion: v2
 name: vm-deployment
 description: Helm chart to deploy VM in OpenShift Virtualization
 version: 0.1.0
+
+
+
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
