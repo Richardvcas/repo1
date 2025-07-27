@@ -62,7 +62,16 @@ spec:
           dataVolume:
             name: {{ .Values.volume_name }}
         - name: cloudinitdisk
-          cloudInitNoCloud:            
+          cloudInitNoCloud:
+            userData: |
+              #cloud-config
+              hostname: {{ .Values.vm_name }}
+              users:
+                - name: cloud-user
+                  groups: wheel
+                  sudo: ALL=(ALL) NOPASSWD:ALL
+                  ssh_authorized_keys:
+                    - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCdummy-placeholder-key
             networkData: |
               version: 2
               ethernets:
