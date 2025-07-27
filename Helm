@@ -62,9 +62,7 @@ spec:
           dataVolume:
             name: {{ .Values.volume_name }}
         - name: cloudinitdisk
-          cloudInitNoCloud:
-            secretRef:
-              name: richard-secret
+          cloudInitNoCloud:            
             networkData: |
               version: 2
               ethernets:
