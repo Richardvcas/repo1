@@ -1,215 +1,76 @@
-
-🟢 Part 2️⃣ — Your Project Folder Structure
-
-Let’s now design your Git repo folder exactly.
-
-You can create a local folder named:
-
-vm-gitops-repo/
-
-Inside it, you will have:
-
-vm-gitops-repo/
-  my-vm-chart/
-    Chart.yaml
-    templates/
-      vm.yaml
-  vms/
-    vm1-values.yaml
-    vm2-values.yaml
-  apps/
-    vm1-app.yaml
-    vm2-app.yaml
-  parent-app.yaml
-
-
----
-
-✅ 2.1 my-vm-chart/ (Helm Chart)
-
-📂 vm-gitops-repo/my-vm-chart/Chart.yaml
-
-apiVersion: v2
-name: my-vm-chart
-description: A Helm chart for deploying KubeVirt VirtualMachines
-type: application
-version: 0.1.0
-appVersion: "1.0"
-
-
----
-
-📂 vm-gitops-repo/my-vm-chart/templates/vm.yaml
-
 apiVersion: kubevirt.io/v1
 kind: VirtualMachine
 metadata:
-  name: {{ .Values.vm.name }}
-  namespace: {{ .Values.vm.namespace }}
+  name: {{ .Values.vm_name }}
+  namespace: {{ .Values.namespace }}
 spec:
+  running: true
   dataVolumeTemplates:
-    - apiVersion: cdi.kubevirt.io/v1beta1
-      kind: DataVolume
-      metadata:
-        name: {{ .Values.vm.volumeName }}
+    - metadata:
+        name: {{ .Values.vm_name }}-volume
       spec:
-        source:
-          http:
-            url: '{{ .Values.vm.imageUrl }}'
         storage:
           resources:
             requests:
-              storage: {{ .Values.vm.storageSize }}
-  running: true
+              storage: {{ .Values.storage_size }}
+          storageClassName: ocs-storagecluster-ceph-rbd-virtualization
+        source:
+          http:
+            url: {{ .Values.image_url }}
   template:
+    metadata:
+      labels:
+        kubevirt.io/vm: {{ .Values.vm_name }}
     spec:
-      architecture: amd64
       domain:
+        cpu:
+          cores: {{ .Values.cpu }}
+        resources:
+          requests:
+            memory: {{ .Values.memory }}
         devices:
           disks:
-            - disk:
+            - name: rootdisk
+              disk:
                 bus: virtio
-              name: rootdisk
-            - disk:
+            - name: cloudinitdisk
+              disk:
                 bus: virtio
-              name: cloudinitdisk
-          interfaces:
-            - masquerade: {}
-              model: virtio
-              name: default
-        machine:
-          type: pc-q35-rhel9.4.0
-        memory:
-          guest: {{ .Values.vm.memory }}
-        resources: {}
+            {{- range .Values.volumes }}
+            {{- if .enabled }}
+            - name: {{ .name }}
+              disk:
+                bus: virtio
+            {{- end }}
+            {{- end }}
       networks:
         - name: default
-          pod: {}
+          multus:
+            networkName: default/vlan3702
       volumes:
-        - dataVolume:
-            name: {{ .Values.vm.volumeName }}
-          name: rootdisk
-        - cloudInitNoCloud:
-            userData: |-
-              user: {{ .Values.vm.cloudUser }}
-              password: {{ .Values.vm.cloudPassword }}
-              chpasswd: { expire: False }
-          name: cloudinitdisk
-
-✅ This Helm template is reusable.
-
-
----
-
-✅ 2.2 vms/ (Values files per VM)
-
-📂 vm-gitops-repo/vms/vm1-values.yaml
-
-vm:
-  name: vm1
-  namespace: default
-  volumeName: vm1-volume
-  imageUrl: "http://example.com/image1.qcow2"
-  storageSize: "10Gi"
-  memory: "4Gi"
-  cloudUser: "admin"
-  cloudPassword: "password123"
-
-
----
-
-📂 vm-gitops-repo/vms/vm2-values.yaml
-
-vm:
-  name: vm2
-  namespace: default
-  volumeName: vm2-volume
-  imageUrl: "http://example.com/image2.qcow2"
-  storageSize: "20Gi"
-  memory: "8Gi"
-  cloudUser: "admin"
-  cloudPassword: "password456"
-
-✅ You can add more by copying this format.
-
-
----
-
-✅ 2.3 apps/ (ArgoCD Application manifests)
-
-These tell ArgoCD how to deploy each VM.
-
-📂 vm-gitops-repo/apps/vm1-app.yaml
-
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: vm1
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: 'https://gitlab.com/your-org/your-repo.git'
-    targetRevision: main
-    path: my-vm-chart
-    helm:
-      valueFiles:
-        - vms/vm1-values.yaml
-  destination:
-    server: 'https://kubernetes.default.svc'
-    namespace: default
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-
-
----
-
-📂 vm-gitops-repo/apps/vm2-app.yaml
-
-Same structure, different values file:
-
-spec:
-  source:
-    helm:
-      valueFiles:
-        - vms/vm2-values.yaml
-
-✅ Each app.yaml points to:
-
-same chart
-
-different values.yaml
-
-
-
----
-
-✅ 2.4 parent-app.yaml
-
-This is the App of Apps definition. You create ONE of these:
-
-📂 vm-gitops-repo/parent-app.yaml
-
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: vms-parent
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: 'https://gitlab.com/your-org/your-repo.git'
-    targetRevision: main
-    path: apps
-  destination:
-    server: 'https://kubernetes.default.svc'
-    namespace: argocd
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-
-✅ ArgoCD watches apps/ folder.
-✅ All child apps inside apps/ get deployed automatically.
+        - name: rootdisk
+          dataVolume:
+            name: {{ .Values.vm_name }}-volume
+        - name: cloudinitdisk
+          cloudInitNoCloud:
+            secretRef:
+              name: {{ .Values.vm_name }}-secret
+            networkData: |
+              version: 2
+              ethernets:
+                eth0:
+                  dhcp4: false
+                  addresses:
+                    - {{ .Values.ip }}
+                  gateway4: 10.14.221.129
+                  nameservers:
+                    addresses:
+                      - 10.240.47.3
+                      - 10.240.41.3
+        {{- range .Values.volumes }}
+        {{- if .enabled }}
+        - name: {{ .name }}
+          persistentVolumeClaim:
+            claimName: {{ .name }}
+        {{- end }}
+        {{- end }}
