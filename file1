@@ -1,171 +1,170 @@
+✅ 2. Chart.yaml
+yaml
+Copy
+Edit
+apiVersion: v2
+name: vm-deployment
+description: Helm chart to deploy VM in OpenShift Virtualization
+version: 0.1.0
+✅ 3. values.yaml (example)
+yaml
+Copy
+Edit
+vm_name: myvm
+namespace: gkp
+volume_name: myvm-rootdisk
+diskname: myvm-disk
+image_url: http://10.14.222.30:8080/rhel-8.10-x86_64-kvm.qcow2
+storage_size: 30Gi
+status: true
+cpu: 4
+memory: 8Gi
+interface: default
+ip: 10.14.21.134
+You can duplicate this values.yaml into multiple files (values-gkp.yaml, values-gos.yaml, etc.) for each namespace.
+
+✅ 4. templates/secret.yaml
+yaml
+Copy
+Edit
 apiVersion: v1
 kind: Secret
 metadata:
   name: richard-secret
-  namespace: wvmtesting
+  namespace: {{ .Values.namespace }}
 type: Opaque
-data:
-#cloud-config
-runcmd:
-  - 'set -x'
-  - 'sed -i "/# source INSTALL_CLASS/i generate_fbenv" /usr/local/bin/fb-init.sh' 
-  - 'cat /etc/INSTALL_CLASS.new >> /etc/INSTALL_CLASS'
-  - '[[ `/usr/bin/cloud-id` == "nocloud" ]] && [[ -f "/usr/local/bin/fb-init.sh" ]] && /usr/local/bin/fb-init.sh'
-  - 'jpmc-dnf-config configure --get-content-hostname > /tmp/jpmc-dnf-config-original-content-hostname'
-  # lab only
-  # ---------
-  - 'jpmc-dnf-config configure --set-content-hostname=repomirror-lab.jpmchase.net'
-  # set lab DNF mirrorlist hostname aliases
-  - "for host in `curl https://repomirror-lab.jpmchase.net/pulp/content/dnf/sources/lrh9/baseos-x86_64.mirrorlist | awk -F/ '{print $3}'`; do echo 10.240.47.188 $host >> /etc/hosts;done"
-  # reload dnsmasq to pick up the new /etc/hosts entries
-  - 'pgrep dnsmasq && kill -HUP $(pgrep dnsmasq)'
-  # everything else
-  - 'yum install -y sudo'
-# allow password auth
-ssh_pwauth: true
-users:
-  - name: root
-    # ssh-authorized-keys:
-    # m-----1
-    passwd: Welcome1Welcome1
-  - name: richard
-    gecos: richard
-    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
-    ssh-authorized-keys:
-      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCpNWrUAIgoaWVvfZio3TSh1fiiNBpyy9IcZeQf0GdjijrtKYbEDubUvtFMLBt9XPeWW9U/yymT817B38eUvQPcMhMFpdoeEXdwVPbFUbvDSR1Ft2kU2L4aTQbVFEBnpfNJT4+QnFN306c0EvUnN+cqeuVFdhSKaZ7ERRZ6EgFPeQw2D54lEok7JR/PNK+t2lIgjK5cM0pLNlBcjs8j1JKV8U4urBxRQkM0HWC0msUK/Bx8+f7olIUJ0z0Z0P9GaAkSKM/rMfxgA1WhlH/B6lNCi3WqJ/GueuU/8X8XFOdXccKA0u6Ma4kEC1JY8mDFOiOEFoI5TCJLjtJZ+b9W934bE/ElT6Z5verA3kFi7Y95FG6VUlJyu6/BnKDbDnWbXqOgKjxKX7qIDKRol0fS0jiR7se1qIKfXgW5fAEtG0dZAhwydyLV1O/YmKqmPQ58uklvmyD/vEBIBAHVuFGsed30KZTkoGtljFYoHN9YSMpPUDDWpwOCBC4MGO5jyynQ1q8= richard@GIEGTIVL07646
-write_files:
-  - path: /etc/INSTALL_CLASS.new
-    content: |
-      KSfbuser="root"
-      KSfbhostname="wh-labocp-004.wh2.lab.jpmchase.net"
-      KSfbfqdn="true"
-      KSfbip="10.14.221.134"
-      KSfbnetmask="255.255.255.192"
-      KSfbgateway="10.14.221.129"
-      KSfbdnsns="10.240.47.3 10.240.41.3"
-      KSfbdnssearch="wh2.lab.jpmchase.net"
-      KSlob="GTI"
-      KSregion="Brooklyn"
-      KSsite="lab1"
-      KSnwzone="lab"
-      timezone="UTC"
-      supportTeam="GDEALINUX"
-      KSicpenv="prod"
-      KSenv="dev"
-      KSautomation="icpw"
-      KSgredl="00057"
-      supportTeam="GSO SRVR UNIX"
-      icp_boot_config="false"
-      icp_boot_config_icp_puppet="true"
-      icp_boot_config_icp_puppet_build_script="puppet_run.rb"
-      icp_boot_config_icp_evolven="true"
-      icp_boot_config_icp_powerbroker="true"
-      icp_boot_config_icp_tivoli_itm6="true"
-      icp_boot_config_icp_aim="true"
-      icp_boot_config_icp_fluentd="true"
-      KScohesity="auto"
-      icp_boot_config_icp_crowdstrike="true"
-      icp_boot_config_icp_cida="true"
-      icp_boot_config_icp_cida_node_type="standard"
-      icp_boot_config_icp_cida_template="ucm_auth_security_cida"
-      icp_boot_config_icp_cida_addomain="exchadlab.gielab.jpmchase.net"
-      epv_require_onboarding="false"
-      epv_repave="true"
-      epv_accountType="Shared Interactive"
-      epv_platform="UnixStandalone - Sophia - Root"
-      epv_accountName="root"
-      epv_region="Global"
-      epv_subRegion="Global"
-      epv_networkLocation="LAN"
-      epv_neimId="G024162"
-      epv_locationId="00057"
-      epv_accessGroupName=""
-      sealId="28954"
-      icp_boot_config_remove_root_pub_keys="true"
-hostname: wh-labocp-004
-fqdn: wh-labocp-004.wh2.lab.jpmchase.net
-manage_etc_hosts: true
-
----
+stringData:
+  userdata: |
+    #cloud-config
+    runcmd:
+      - 'set -x'
+      - 'sed -i "/# source INSTALL_CLASS/i generate_fbenv" /usr/local/bin/fb-init.sh'
+      ...
+    hostname: {{ .Values.vm_name }}
+    fqdn: {{ .Values.vm_name }}.wh2.lab.jpmchase.net
+    manage_etc_hosts: true
+  # add additional write_files block as needed using `tpl` if it includes template variables
+✅ 5. templates/pvc.yaml
+yaml
+Copy
+Edit
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.diskname }}
+  namespace: {{ .Values.namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: ocs-storagecluster-ceph-rbd-virtualization
+✅ 6. templates/vm.yaml
+yaml
+Copy
+Edit
 apiVersion: kubevirt.io/v1
 kind: VirtualMachine
 metadata:
-  labels:
-    kubevirt.io/vm: wh-labocp-004
-  name: wh-labocp-004
-  namespace: wvmtesting
+  name: {{ .Values.vm_name }}
+  namespace: {{ .Values.namespace }}
 spec:
   dataVolumeTemplates:
-  - metadata:
-      name: vm-rhel134-dv1
-    spec:
-      storage:
-        resources:
-          requests:
-            storage: 110Gi
-        # storageClassName: ocs-storagecluster-ceph-rbd
-        storageClassName: ocs-storagecluster-ceph-rbd-virtualization
-      source:
-        http:
-          url: http://fred11420.gielab.jpmchase.net/images/img_ovlt_rhel_9_9.6.1_2025-07-09-100051.qcow2
-            #registry:
-            #url: docker://fred31420.gielab.jpmchase.net:8443/jpmc/ovlt_rhel_9:9.6.1_2025-07-09-100051
-            #secretRef: fred31420-data-source-secret
-            #certConfigMap: fred31420-tls-certs
-    status: {}
-  running: true
+    - metadata:
+        name: {{ .Values.volume_name }}
+      spec:
+        storage:
+          resources:
+            requests:
+              storage: {{ .Values.storage_size }}
+          storageClassName: ocs-storagecluster-ceph-rbd-virtualization
+        source:
+          http:
+            url: {{ .Values.image_url }}
+  running: {{ .Values.status }}
   template:
     metadata:
       labels:
-        kubevirt.io/vm: wh-labocp-004
+        kubevirt.io/vm: {{ .Values.vm_name }}
     spec:
       domain:
-        firmware:
-          bootloader:
-            efi:
-              secureBoot: false
-        devices:
-          interfaces:
-            - name: nic-gray-wh-labocp-004
-              bridge: {}
-          disks:
-          - disk:
-              bus: virtio
-            name: vm-rhel134-dv1
-          - disk:
-              bus: virtio
-            name: cloudinitdisk
-        machine:
-          type: ""
+        ...
         cpu:
-          cores: 2
+          cores: {{ .Values.cpu }}
         resources:
           requests:
-            memory: 8Gi
-      terminationGracePeriodSeconds: 180
+            memory: {{ .Values.memory }}
       networks:
-        - name: nic-gray-wh-labocp-004
+        - name: {{ .Values.interface }}
           multus:
             networkName: default/vlan3702
       volumes:
-      - dataVolume:
-          name: vm-rhel134-dv1
-        name: vm-rhel134-dv1
-      - name: cloudinitdisk
-        cloudInitNoCloud:
-          secretRef:
-            name: richard-secret
-          networkData: |
-            version: 2
-            ethernets:
-              eth0:
-                dhcp4: false
-                addresses:
-                  - 10.14.221.134/26
-                gateway4: 10.14.221.129
-                nameservers:
+        ...
+        - name: cloudinitdisk
+          cloudInitNoCloud:
+            secretRef:
+              name: richard-secret
+            networkData: |
+              version: 2
+              ethernets:
+                eth0:
+                  dhcp4: false
                   addresses:
-                    - 10.240.47.3
-                    - 10.240.41.3
+                    - {{ .Values.ip }}
+                  gateway4: 10.14.221.129
+                  nameservers:
+                    addresses:
+                      - 10.240.47.3
+                      - 10.240.41.3
+✅ 7. GitLab + Argo CD Setup
+In GitLab repo:
 
+Push the entire vm-helm folder.
 
+Create multiple values files like:
+
+values-gkp.yaml
+
+values-gos.yaml
+
+In Argo CD:
+
+For each VM or namespace, create a separate application.
+
+Example: GKP Application
+
+yaml
+Copy
+Edit
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gkp-vm
+  namespace: openshift-gitops
+spec:
+  project: default
+  source:
+    repoURL: 'https://gitlab.com/yourrepo/vm-helm'
+    targetRevision: HEAD
+    path: vm-helm
+    helm:
+      valueFiles:
+        - values-gkp.yaml
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: gkp
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+Repeat similarly for gos-vm.
+
+✅ Dynamic Deployment Process
+If you're generating values.yaml dynamically via API (like your previous Python code):
+
+Generate values-<vm>.yaml
+
+Push to GitLab
+
+Ensure ArgoCD Application points to that values file
