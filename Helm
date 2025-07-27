@@ -99,3 +99,19 @@ version: 0.1.0
 
 
 curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+
+
+# Step 1: Add Helm repository
+sudo tee /etc/yum.repos.d/helm.repo <<EOF
+[helm]
+name=Helm stable repository
+baseurl=https://baltocdn.com/helm/stable/rpm/
+enabled=1
+gpgcheck=1
+gpgkey=https://baltocdn.com/helm/signing.asc
+EOF
+
+# Step 2: Install Helm
+sudo dnf install helm -y
+
