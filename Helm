@@ -77,77 +77,15 @@ spec:
                       - 10.240.41.3
 
 
+
+
+
 chart.yaml
 
 apiVersion: v2
 name: vm-deployment
 description: Helm chart to deploy VM in OpenShift Virtualization
 version: 0.1.0
-
-vm.yaml
-apiVersion: kubevirt.io/v1
-kind: VirtualMachine
-metadata:
-  name: {{ .Values.vm_name }}
-  namespace: {{ .Values.namespace }}
-spec:
-  dataVolumeTemplates:
-    - metadata:
-        name: {{ .Values.volume_name }}
-      spec:
-        storage:
-          resources:
-            requests:
-              storage: {{ .Values.storage_size }}
-          storageClassName: ocs-storagecluster-ceph-rbd-virtualization
-        source:
-          http:
-            url: {{ .Values.image_url }}
-  running: {{ .Values.status }}
-  template:
-    metadata:
-      labels:
-        kubevirt.io/vm: {{ .Values.vm_name }}
-    spec:
-      domain:
-        cpu:
-          cores: {{ .Values.cpu }}
-        resources:
-          requests:
-            memory: {{ .Values.memory }}
-        devices:
-          disks:
-            - name: rootdisk
-              disk:
-                bus: virtio
-            - name: cloudinitdisk
-              disk:
-                bus: virtio
-      networks:
-        - name: {{ .Values.interface }}
-          multus:
-            networkName: default/vlan3702
-      volumes:
-        - name: rootdisk
-          dataVolume:
-            name: {{ .Values.volume_name }}
-        - name: cloudinitdisk
-          cloudInitNoCloud:
-            secretRef:
-              name: richard-secret
-            networkData: |
-              version: 2
-              ethernets:
-                eth0:
-                  dhcp4: false
-                  addresses:
-                    - {{ .Values.ip }}
-                  gateway4: 10.14.221.129
-                  nameservers:
-                    addresses:
-                      - 10.240.47.3
-                      - 10.240.41.3
-
 
 
 
