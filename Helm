@@ -112,6 +112,17 @@ gpgcheck=1
 gpgkey=https://baltocdn.com/helm/signing.asc
 EOF
 
+
+cat <<EOF | sudo tee /etc/yum.repos.d/helm.repo > /dev/null
+[helm]
+name=Helm stable repository
+baseurl=https://baltocdn.com/helm/stable/rpm/
+enabled=1
+gpgcheck=1
+gpgkey=https://baltocdn.com/helm/signing.asc
+EOF
+
+
 # Step 2: Install Helm
 sudo dnf install helm -y
 
