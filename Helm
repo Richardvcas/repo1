@@ -39,17 +39,28 @@ spec:
       labels:
         kubevirt.io/vm: {{ .Values.vm_name }}
     spec:
-      domain:        
+      domain:
         cpu:
           cores: {{ .Values.cpu }}
         resources:
           requests:
             memory: {{ .Values.memory }}
+        devices:
+          disks:
+            - name: rootdisk
+              disk:
+                bus: virtio
+            - name: cloudinitdisk
+              disk:
+                bus: virtio
       networks:
         - name: {{ .Values.interface }}
           multus:
             networkName: default/vlan3702
-      volumes:        
+      volumes:
+        - name: rootdisk
+          dataVolume:
+            name: {{ .Values.volume_name }}
         - name: cloudinitdisk
           cloudInitNoCloud:
             secretRef:
