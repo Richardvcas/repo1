@@ -1,76 +1,39 @@
-import os
-from flask import Flask, request, jsonify
-from .utils import render_vm_yaml, save_yaml_to_file, push_yaml_to_git, remove_yaml_from_git
-from flask import Flask, request, jsonify
-from flasgger import Swagger
-
-app = Flask(__name__)
-swagger = Swagger(app)
-
-@app.route("/api/vm-request", methods=["POST"])
-def vm_request():
+@app.route("/api/vm-resize", methods=["POST"])
+def vm_resize():
     """
-    VM Deployment via GitLab + ArgoCD
+    VM Resize via GitLab + ArgoCD
     ---
     tags:
       - VM Operations
     consumes:
       - application/json
     parameters:
-      - name: vm
-        in: body
+      - in: body
+        name: vm
         required: true
         schema:
-          id: VMRequest
-          required:
-            - vm_name
-            - namespace
-            - volumae_name
-            - image_url
-            - storage_size
-            - status
-            - cpu
-            - memory
-            - diskname
-            - interface            
-            - ip
-            - cloud_user
-            - cloud_password
-          ordered: true
-          properties:
-            vm_name:
-              type: string
-              required: true
-              default: 'wh-labocp-007'
-            namespace:
-              type: string
-            volume_name:
-              type: string  
-            image_url:
-              type: string  
-            storage_size:
-              type: string  
-            status:
-              type: string              
-            cpu:
-              type: integer
-            memory:
-              type: string              
-            diskname:
-              type: string  
-            interface:  
-              type: string   
-            ip:
-              type: string
-            cloud_user:
-              type: string
-            cloud_password:
-              type: string  
+          type: object
+          example:
+            vm_name: "wh-labocp-007"
+            readOnly: true
+            namespace: "gkp"
+            volume_name: "wh-labocp-007-rootdisk"
+            image_url: "http://10.14.222.5/rhel8.qcow2"
+            storage_size: "30Gi"
+            status: "false"
+            cpu: 4
+            memory: "8Gi"
+            diskname: "rootdisk"
+            interface: "eth0"
+            ip: "192.168.1.100"
+            cloud_user: "clouduser"
+            cloud_password: "cloudpass"
     responses:
       200:
-        description: VM deployment triggered successfully
+        description: VM Resize triggered successfully
         examples:
-          application/json: { "status": "VM deployment triggered" }
+          application/json: 
+            status: "VM deployment triggered"
     """
     data = request.get_json()
 
@@ -78,8 +41,8 @@ def vm_request():
         return jsonify({"error": "Invalid JSON"}), 400
 
     required_fields = [
-        "vm_name", "namespace", "volume_name", "image_url",
-        "storage_size", "status", "cpu", "memory", "diskname", "interface", "ip", "cloud_user", "cloud_password"
+        "vm_name", "namespace", 
+        "cpu", "memory"
     ]
     missing = [f for f in required_fields if f not in data]
     if missing:
@@ -100,79 +63,3 @@ def vm_request():
         return jsonify({"error": str(e)}), 500
 
     return jsonify({"status": "accepted", "details": data}), 200
-
-@app.route("/api/vm-delete", methods=["POST"])
-def vm_delete():
-    """
-    Delete VM via GitLab + ArgoCD
-    ---
-    tags:
-      - VM Operations
-    consumes:
-      - application/json
-    parameters:
-      - name: vm
-        in: body
-        required: true
-        schema:
-          id: DeleteVM
-          required:
-            - vm_name
-            - namespace
-          properties:
-            vm_name:
-              type: string
-            namespace:
-              type: string
-    responses:
-      200:
-        description: VM deletion triggered successfully
-        examples:
-          application/json: { "status": "VM deletion triggered" }
-    """
-
-    data = request.get_json()
-    if not data or "vm_name" not in data or "namespace" not in data:
-        return jsonify({"error": "Missing vm_name or namespace"}), 400
-
-    try:
-        remove_yaml_from_git(data["vm_name"], data["namespace"])
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-    return jsonify({"status": "deleted", "vm_name": data["vm_name"]}), 200
-----------
-     """
-    VM Deployment via GitLab + ArgoCD
-    ---
-    tags:
-      - VM Operations
-    consumes:
-      - application/json
-    parameters:
-      - in: body
-        name: vm
-        required: true
-        schema:
-          type: object
-          example:
-            vm_name: "wh-labocp-007"
-            namespace: "gkp"
-            volume_name: "wh-labocp-007-rootdisk"
-            image_url: "http://10.14.222.5/rhel8.qcow2"
-            storage_size: "30Gi"
-            status: "false"
-            cpu: 4
-            memory: "8Gi"
-            diskname: "rootdisk"
-            interface: "eth0"
-            ip: "192.168.1.100"
-            cloud_user: "clouduser"
-            cloud_password: "cloudpass"
-    responses:
-      200:
-        description: VM deployment triggered successfully
-        examples:
-          application/json: 
-            status: "VM deployment triggered"
-    """
