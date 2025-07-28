@@ -142,6 +142,17 @@ def vm_delete():
 
     return jsonify({"status": "deleted", "vm_name": data["vm_name"]}), 200
 ----------
+import os
+from flask import Flask, request, jsonify
+from .utils import render_vm_yaml, save_yaml_to_file, push_yaml_to_git, remove_yaml_from_git
+from flask import Flask, request, jsonify
+from flasgger import Swagger
+
+app = Flask(__name__)
+swagger = Swagger(app)
+
+@app.route("/api/vm-request", methods=["POST"])
+def vm_request():
     """
     VM Deployment via GitLab + ArgoCD
     ---
@@ -150,8 +161,8 @@ def vm_delete():
     consumes:
       - application/json
     parameters:
-      - in: body
-        name: vm
+      - name: vm
+        in: body
         required: true
         schema:
           type: object
@@ -215,4 +226,72 @@ def vm_delete():
         examples:
           application/json: { "status": "VM deployment triggered" }
     """
+    data = request.get_json()
 
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    required_fields = [
+        "vm_name", "namespace", "volume_name", "image_url",
+        "storage_size", "status", "cpu", "memory", "diskname", "interface", "ip", "cloud_user", "cloud_password"
+    ]
+    missing = [f for f in required_fields if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+    try:
+        
+        yaml_content = render_vm_yaml(data)
+
+        
+        filename = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{data['vm_name']}.yaml"
+        save_yaml_to_file(yaml_content, filename)
+
+        # Push to GitLab
+        push_yaml_to_git(filename,data["namespace"])
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"status": "accepted", "details": data}), 200
+
+@app.route("/api/vm-delete", methods=["POST"])
+def vm_delete():
+    """
+    Delete VM via GitLab + ArgoCD
+    ---
+    tags:
+      - VM Operations
+    consumes:
+      - application/json
+    parameters:
+      - name: vm
+        in: body
+        required: true
+        schema:
+          id: DeleteVM
+          required:
+            - vm_name
+            - namespace
+          properties:
+            vm_name:
+              type: string
+            namespace:
+              type: string
+    responses:
+      200:
+        description: VM deletion triggered successfully
+        examples:
+          application/json: { "status": "VM deletion triggered" }
+    """
+
+    data = request.get_json()
+    if not data or "vm_name" not in data or "namespace" not in data:
+        return jsonify({"error": "Missing vm_name or namespace"}), 400
+
+    try:
+        remove_yaml_from_git(data["vm_name"], data["namespace"])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"status": "deleted", "vm_name": data["vm_name"]}), 200
