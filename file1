@@ -1,65 +1,43 @@
+import yaml
+
 @app.route("/api/vm-resize", methods=["POST"])
 def vm_resize():
     """
-    VM Deployment via GitLab + ArgoCD
+    VM Resize via GitLab + ArgoCD
     ---
-    tags:
-      - VM Operations
-    consumes:
-      - application/json
-    parameters:
-      - in: body
-        name: vm
-        required: true
-        schema:
-          type: object
-          example:
-            vm_name: "wh-labocp-007"
-            readOnly: true
-            namespace: "gkp"
-            volume_name: "wh-labocp-007-rootdisk"
-            image_url: "http://10.14.222.5/rhel8.qcow2"
-            storage_size: "30Gi"
-            status: "false"
-            cpu: 4
-            memory: "8Gi"
-            diskname: "rootdisk"
-            interface: "eth0"
-            ip: "192.168.1.100"
-            cloud_user: "clouduser"
-            cloud_password: "cloudpass"
-    responses:
-      200:
-        description: VM deployment triggered successfully
-        examples:
-          application/json: 
-            status: "VM deployment triggered"
+    ...
     """
+
     data = request.get_json()
+    if not data or "vm_name" not in data or "namespace" not in data:
+        return jsonify({"error": "Missing required fields"}), 400
 
-    if not data:
-        return jsonify({"error": "Invalid JSON"}), 400
+    vm_name = data["vm_name"]
+    namespace = data["namespace"]
+    filename = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{vm_name}.yaml"
 
-    required_fields = [
-        "vm_name", "namespace", "volume_name", "image_url",
-        "storage_size", "status", "cpu", "memory", "diskname", "interface", "ip", "cloud_user", "cloud_password"
-    ]
-    missing = [f for f in required_fields if f not in data]
-    if missing:
-        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+    # ✅ Load existing YAML
+    if not os.path.exists(filename):
+        return jsonify({"error": f"{vm_name}.yaml not found"}), 404
 
+    with open(filename, 'r') as f:
+        vm_yaml = yaml.safe_load(f)
+
+    # ✅ Modify only specific fields
+    if "cpu" in data:
+        vm_yaml['spec']['template']['spec']['domain']['cpu']['cores'] = data["cpu"]
+
+    if "memory" in data:
+        vm_yaml['spec']['template']['spec']['domain']['resources']['requests']['memory'] = data["memory"]
+
+    # ✅ Save modified YAML back
+    with open(filename, 'w') as f:
+        yaml.dump(vm_yaml, f, default_flow_style=False)
+
+    # ✅ Push to GitLab
     try:
-        
-        yaml_content = render_vm_yaml(data)
-
-        
-        filename = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{data['vm_name']}.yaml"
-        save_yaml_to_file(yaml_content, filename)
-
-        # Push to GitLab
-        push_yaml_to_git(filename,data["namespace"])
-
+        push_yaml_to_git(filename, namespace)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-    return jsonify({"status": "accepted", "details": data}), 200
+    return jsonify({"status": "resize updated", "vm_name": vm_name}), 200
