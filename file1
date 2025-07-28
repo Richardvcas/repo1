@@ -1,40 +1,45 @@
-import yaml
-
 @app.route("/api/vm-resize", methods=["POST"])
 def vm_resize():
-    """
-    VM Resize via GitLab + ArgoCD
-    ---
-    ...
-    """
-
     data = request.get_json()
+    
+    # ✅ Step 1: Validate JSON
     if not data or "vm_name" not in data or "namespace" not in data:
-        return jsonify({"error": "Missing required fields"}), 400
+        return jsonify({"error": "Missing required fields: vm_name, namespace"}), 400
 
     vm_name = data["vm_name"]
     namespace = data["namespace"]
+    
+    # ✅ Step 2: Construct YAML file path
     filename = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{vm_name}.yaml"
 
-    # ✅ Load existing YAML
+    # ✅ Step 3: Check if YAML file exists
     if not os.path.exists(filename):
-        return jsonify({"error": f"{vm_name}.yaml not found"}), 404
+        return jsonify({"error": f"YAML file not found for {vm_name}"}), 404
 
+    # ✅ Step 4: Load YAML content safely
     with open(filename, 'r') as f:
-        vm_yaml = yaml.safe_load(f)
+        content = f.read()
 
-    # ✅ Modify only specific fields
+    if not content.strip():
+        return jsonify({"error": f"YAML file for {vm_name} is empty"}), 400
+
+    try:
+        vm_yaml = yaml.safe_load(content)
+    except yaml.YAMLError as e:
+        return jsonify({"error": f"YAML parse error: {str(e)}"}), 400
+
+    # ✅ Step 5: Update selective fields
     if "cpu" in data:
         vm_yaml['spec']['template']['spec']['domain']['cpu']['cores'] = data["cpu"]
 
     if "memory" in data:
         vm_yaml['spec']['template']['spec']['domain']['resources']['requests']['memory'] = data["memory"]
 
-    # ✅ Save modified YAML back
+    # ✅ Step 6: Save back
     with open(filename, 'w') as f:
         yaml.dump(vm_yaml, f, default_flow_style=False)
 
-    # ✅ Push to GitLab
+    # ✅ Step 7: Push to GitLab
     try:
         push_yaml_to_git(filename, namespace)
     except Exception as e:
