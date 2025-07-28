@@ -1,5 +1,17 @@
-values.yaml
+https://gitlab.lab.vks.net/V849212/vm-helm.git
 
+charts > vm-chart (chart.yaml, values.yaml) > templates > vm.yaml
+vms (Nothing inside)
+
+chart.yaml
+
+apiVersion: v2
+name: vm-deployment
+description: Helm chart to deploy VM in OpenShift Virtualization
+version: 0.1.0
+
+
+values.yaml
 vm_name: myvm
 namespace: gkp
 volume_name: myvm-rootdisk
@@ -12,27 +24,31 @@ memory: 8Gi
 interface: default
 ip: 10.14.21.134
 
-
 vm.yaml
-
 apiVersion: kubevirt.io/v1
 kind: VirtualMachine
 metadata:
+  labels:
+    kubevirt.io/vm: {{ .Values.vm_name }}
   name: {{ .Values.vm_name }}
-  namespace: {{ .Values.namespace }}
 spec:
   dataVolumeTemplates:
-    - metadata:
-        name: {{ .Values.volume_name }}
-      spec:
-        storage:
-          resources:
-            requests:
-              storage: {{ .Values.storage_size }}
-          storageClassName: ocs-storagecluster-ceph-rbd-virtualization
-        source:
-          http:
-            url: {{ .Values.image_url }}
+  - metadata:
+      name: {{ .Values.volume_name }}
+    spec:
+      storage:
+        resources:
+          requests:
+            storage: {{ .Values.storage_size }}
+        # storageClassName: ocs-storagecluster-ceph-rbd
+        storageClassName: ocs-storagecluster-ceph-rbd-virtualization
+      source:
+        http:
+          url: {{ .Values.image_url }}
+            #registry:
+            #url: docker://fred31420.gielab.jpmchase.net:8443/jpmc/ovlt_rhel_9:9.6.1_2025-07-09-100051
+            #secretRef: fred31420-data-source-secret
+            #certConfigMap: fred31420-tls-certs    
   running: {{ .Values.status }}
   template:
     metadata:
@@ -40,89 +56,58 @@ spec:
         kubevirt.io/vm: {{ .Values.vm_name }}
     spec:
       domain:
+        firmware:
+          bootloader:
+            efi:
+              secureBoot: false
+        devices:
+          interfaces:
+            - name: {{ .Values.interface }}
+              bridge: {{}}
+          disks:
+          - disk:
+              bus: virtio
+            name: rootdisk          
+          - disk:
+              bus: virtio
+            name: cloudinitdisk
+        machine:
+          type: ""
         cpu:
           cores: {{ .Values.cpu }}
         resources:
           requests:
             memory: {{ .Values.memory }}
-        devices:
-          disks:
-            - name: rootdisk
-              disk:
-                bus: virtio
-            - name: cloudinitdisk
-              disk:
-                bus: virtio
+      terminationGracePeriodSeconds: 180
       networks:
         - name: {{ .Values.interface }}
           multus:
             networkName: default/vlan3702
       volumes:
-        - name: rootdisk
-          dataVolume:
-            name: {{ .Values.volume_name }}
-        - name: cloudinitdisk
-          cloudInitNoCloud:
-            userData: |
-              #cloud-config
-              hostname: {{ .Values.vm_name }}
-              users:
-                - name: cloud-user
-                  groups: wheel
-                  sudo: ALL=(ALL) NOPASSWD:ALL
-                  ssh_authorized_keys:
-                    - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC
-            networkData: |
-              version: 2
-              ethernets:
-                eth0:
-                  dhcp4: false
+      - dataVolume:
+          name: {{ .Values.volume_name }}
+        name: rootdisk           
+      - name: cloudinitdisk
+        cloudInitNoCloud:          
+          networkData: |
+            version: 2
+            ethernets:
+              eth0:
+                dhcp4: false
+                addresses:
+                  - {{ .Values-ip }}
+                gateway4: 10.14.221.129
+                nameservers:
                   addresses:
-                    - {{ .Values.ip }}
-                  gateway4: 10.14.221.129
-                  nameservers:
-                    addresses:
-                      - 10.240.47.3
-                      - 10.240.41.3
+                    - 10.240.47.3
+                    - 10.240.41.3
+          userData: |-
+            user: cloud-user
+            password: 'a23456'
+            chpasswd: { "expire": False }
 
 
 
 
 
-chart.yaml
-
-apiVersion: v2
-name: vm-deployment
-description: Helm chart to deploy VM in OpenShift Virtualization
-version: 0.1.0
-
-
-
-curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-
-
-
-# Step 1: Add Helm repository
-sudo tee /etc/yum.repos.d/helm.repo <<EOF
-[helm]
-name=Helm stable repository
-baseurl=https://baltocdn.com/helm/stable/rpm/
-enabled=1
-gpgcheck=1
-gpgkey=https://baltocdn.com/helm/signing.asc
-EOF
-
-
-cat <<EOF | sudo tee /etc/yum.repos.d/helm.repo > /dev/null
-[helm]
-name=Helm stable repository
-baseurl=https://baltocdn.com/helm/stable/rpm/
-enabled=1
-gpgcheck=1
-gpgkey=https://baltocdn.com/helm/signing.asc
-EOF
-
-
-# Step 2: Install Helm
-sudo dnf install helm -y
 
