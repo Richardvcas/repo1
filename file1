@@ -142,7 +142,7 @@ def vm_delete():
 
     return jsonify({"status": "deleted", "vm_name": data["vm_name"]}), 200
 ----------
-    """
+     """
     VM Deployment via GitLab + ArgoCD
     ---
     tags:
