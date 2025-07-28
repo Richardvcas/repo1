@@ -13,53 +13,30 @@ def vm_resize():
         required: true
         schema:
           type: object
-          example:
-            vm_name: "wh-labocp-007"
-            readOnly: true
-            namespace: "gkp"
-            volume_name: "wh-labocp-007-rootdisk"
-            image_url: "http://10.14.222.5/rhel8.qcow2"
-            storage_size: "30Gi"
-            status: "false"
-            cpu: 4
-            memory: "8Gi"
-            diskname: "rootdisk"
-            interface: "eth0"
-            ip: "192.168.1.100"
-            cloud_user: "clouduser"
-            cloud_password: "cloudpass"
+          required:
+            - vm_name
+            - namespace
+            - cpu
+            - memory
+          properties:
+            vm_name:
+              type: string
+              default: "wh-labocp-007"
+              readOnly: true
+            namespace:
+              type: string
+              default: "gkp"
+              readOnly: true
+            cpu:
+              type: integer
+              default: 4
+            memory:
+              type: string
+              default: "8Gi"
     responses:
       200:
         description: VM Resize triggered successfully
         examples:
           application/json: 
-            status: "VM deployment triggered"
+            status: "VM resize triggered"
     """
-    data = request.get_json()
-
-    if not data:
-        return jsonify({"error": "Invalid JSON"}), 400
-
-    required_fields = [
-        "vm_name", "namespace", 
-        "cpu", "memory"
-    ]
-    missing = [f for f in required_fields if f not in data]
-    if missing:
-        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
-
-    try:
-        
-        yaml_content = render_vm_yaml(data)
-
-        
-        filename = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{data['vm_name']}.yaml"
-        save_yaml_to_file(yaml_content, filename)
-
-        # Push to GitLab
-        push_yaml_to_git(filename,data["namespace"])
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-    return jsonify({"status": "accepted", "details": data}), 200
