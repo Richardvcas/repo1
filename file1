@@ -141,3 +141,78 @@ def vm_delete():
         return jsonify({"error": str(e)}), 500
 
     return jsonify({"status": "deleted", "vm_name": data["vm_name"]}), 200
+----------
+    """
+    VM Deployment via GitLab + ArgoCD
+    ---
+    tags:
+      - VM Operations
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: vm
+        required: true
+        schema:
+          type: object
+          required:
+            - vm_name
+            - namespace
+            - volume_name
+            - image_url
+            - storage_size
+            - status
+            - cpu
+            - memory
+            - diskname
+            - interface
+            - ip
+            - cloud_user
+            - cloud_password
+          properties:
+            vm_name:
+              type: string
+              default: "wh-labocp-007"
+            namespace:
+              type: string
+              default: "gkp"
+            volume_name:
+              type: string
+              default: "wh-labocp-007-rootdisk"
+            image_url:
+              type: string
+              default: "http://10.14.222.5/rhel8.qcow2"
+            storage_size:
+              type: string
+              default: "30Gi"
+            status:
+              type: string
+              default: "false"
+            cpu:
+              type: integer
+              default: 4
+            memory:
+              type: string
+              default: "8Gi"
+            diskname:
+              type: string
+              default: "rootdisk"
+            interface:
+              type: string
+              default: "eth0"
+            ip:
+              type: string
+              default: "192.168.1.100"
+            cloud_user:
+              type: string
+              default: "clouduser"
+            cloud_password:
+              type: string
+              default: "cloudpass"
+    responses:
+      200:
+        description: VM deployment triggered successfully
+        examples:
+          application/json: { "status": "VM deployment triggered" }
+    """
+
