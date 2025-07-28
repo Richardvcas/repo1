@@ -168,3 +168,94 @@ Generate values-<vm>.yaml
 Push to GitLab
 
 Ensure ArgoCD Application points to that values file
+from flask import Flask, request, jsonify
+from flasgger import Swagger
+
+app = Flask(__name__)
+swagger = Swagger(app)
+
+@app.route('/api/vm-request', methods=['POST'])
+def create_vm():
+    """
+    Trigger VM Deployment via GitLab + ArgoCD
+    ---
+    tags:
+      - VM Operations
+    consumes:
+      - application/json
+    parameters:
+      - name: vm
+        in: body
+        required: true
+        schema:
+          id: VMRequest
+          required:
+            - vm_name
+            - namespace
+            - ip
+            - cpu
+            - memory
+          properties:
+            vm_name:
+              type: string
+            namespace:
+              type: string
+            ip:
+              type: string
+            cpu:
+              type: integer
+            memory:
+              type: string
+    responses:
+      200:
+        description: VM deployment triggered successfully
+        examples:
+          application/json: { "status": "VM deployment triggered" }
+    """
+    data = request.get_json()
+
+    # 🧠 Your logic here: create YAML, push to GitLab, trigger ArgoCD
+    print("Received VM Request:", data)
+
+    return jsonify({"status": "VM deployment triggered"}), 200
+
+
+@app.route('/api/delete-vm', methods=['POST'])
+def delete_vm():
+    """
+    Delete VM via GitLab + ArgoCD
+    ---
+    tags:
+      - VM Operations
+    consumes:
+      - application/json
+    parameters:
+      - name: vm
+        in: body
+        required: true
+        schema:
+          id: DeleteVM
+          required:
+            - vm_name
+            - namespace
+          properties:
+            vm_name:
+              type: string
+            namespace:
+              type: string
+    responses:
+      200:
+        description: VM deletion triggered successfully
+        examples:
+          application/json: { "status": "VM deletion triggered" }
+    """
+    data = request.get_json()
+
+    # 🧠 Your logic here: remove YAML, commit to GitLab, ArgoCD sync
+    print("Received VM Delete Request:", data)
+
+    return jsonify({"status": "VM deletion triggered"}), 200
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
