@@ -1,183 +1,16 @@
-✅ 2. Chart.yaml
-yaml
-Copy
-Edit
-apiVersion: v2
-name: vm-deployment
-description: Helm chart to deploy VM in OpenShift Virtualization
-version: 0.1.0
-✅ 3. values.yaml (example)
-yaml
-Copy
-Edit
-vm_name: myvm
-namespace: gkp
-volume_name: myvm-rootdisk
-diskname: myvm-disk
-image_url: http://10.14.222.30:8080/rhel-8.10-x86_64-kvm.qcow2
-storage_size: 30Gi
-status: true
-cpu: 4
-memory: 8Gi
-interface: default
-ip: 10.14.21.134
-You can duplicate this values.yaml into multiple files (values-gkp.yaml, values-gos.yaml, etc.) for each namespace.
-
-✅ 4. templates/secret.yaml
-yaml
-Copy
-Edit
-apiVersion: v1
-kind: Secret
-metadata:
-  name: richard-secret
-  namespace: {{ .Values.namespace }}
-type: Opaque
-stringData:
-  userdata: |
-    #cloud-config
-    runcmd:
-      - 'set -x'
-      - 'sed -i "/# source INSTALL_CLASS/i generate_fbenv" /usr/local/bin/fb-init.sh'
-      ...
-    hostname: {{ .Values.vm_name }}
-    fqdn: {{ .Values.vm_name }}.wh2.lab.jpmchase.net
-    manage_etc_hosts: true
-  # add additional write_files block as needed using `tpl` if it includes template variables
-✅ 5. templates/pvc.yaml
-yaml
-Copy
-Edit
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ .Values.diskname }}
-  namespace: {{ .Values.namespace }}
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
-  storageClassName: ocs-storagecluster-ceph-rbd-virtualization
-✅ 6. templates/vm.yaml
-yaml
-Copy
-Edit
-apiVersion: kubevirt.io/v1
-kind: VirtualMachine
-metadata:
-  name: {{ .Values.vm_name }}
-  namespace: {{ .Values.namespace }}
-spec:
-  dataVolumeTemplates:
-    - metadata:
-        name: {{ .Values.volume_name }}
-      spec:
-        storage:
-          resources:
-            requests:
-              storage: {{ .Values.storage_size }}
-          storageClassName: ocs-storagecluster-ceph-rbd-virtualization
-        source:
-          http:
-            url: {{ .Values.image_url }}
-  running: {{ .Values.status }}
-  template:
-    metadata:
-      labels:
-        kubevirt.io/vm: {{ .Values.vm_name }}
-    spec:
-      domain:
-        ...
-        cpu:
-          cores: {{ .Values.cpu }}
-        resources:
-          requests:
-            memory: {{ .Values.memory }}
-      networks:
-        - name: {{ .Values.interface }}
-          multus:
-            networkName: default/vlan3702
-      volumes:
-        ...
-        - name: cloudinitdisk
-          cloudInitNoCloud:
-            secretRef:
-              name: richard-secret
-            networkData: |
-              version: 2
-              ethernets:
-                eth0:
-                  dhcp4: false
-                  addresses:
-                    - {{ .Values.ip }}
-                  gateway4: 10.14.221.129
-                  nameservers:
-                    addresses:
-                      - 10.240.47.3
-                      - 10.240.41.3
-✅ 7. GitLab + Argo CD Setup
-In GitLab repo:
-
-Push the entire vm-helm folder.
-
-Create multiple values files like:
-
-values-gkp.yaml
-
-values-gos.yaml
-
-In Argo CD:
-
-For each VM or namespace, create a separate application.
-
-Example: GKP Application
-
-yaml
-Copy
-Edit
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: gkp-vm
-  namespace: openshift-gitops
-spec:
-  project: default
-  source:
-    repoURL: 'https://gitlab.com/yourrepo/vm-helm'
-    targetRevision: HEAD
-    path: vm-helm
-    helm:
-      valueFiles:
-        - values-gkp.yaml
-  destination:
-    server: 'https://kubernetes.default.svc'
-    namespace: gkp
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-Repeat similarly for gos-vm.
-
-✅ Dynamic Deployment Process
-If you're generating values.yaml dynamically via API (like your previous Python code):
-
-Generate values-<vm>.yaml
-
-Push to GitLab
-
-Ensure ArgoCD Application points to that values file
+import os
+from flask import Flask, request, jsonify
+from .utils import render_vm_yaml, save_yaml_to_file, push_yaml_to_git, remove_yaml_from_git
 from flask import Flask, request, jsonify
 from flasgger import Swagger
 
 app = Flask(__name__)
 swagger = Swagger(app)
 
-@app.route('/api/vm-request', methods=['POST'])
-def create_vm():
+@app.route("/api/vm-request", methods=["POST"])
+def vm_request():
     """
-    Trigger VM Deployment via GitLab + ArgoCD
+    VM Deployment via GitLab + ArgoCD
     ---
     tags:
       - VM Operations
@@ -192,20 +25,47 @@ def create_vm():
           required:
             - vm_name
             - namespace
-            - ip
+            - volumae_name
+            - image_url
+            - storage_size
+            - status
             - cpu
             - memory
+            - diskname
+            - interface            
+            - ip
+            - cloud_user
+            - cloud_password
+          ordered: true
           properties:
             vm_name:
               type: string
+              required: true
+              default: 'wh-labocp-007'
             namespace:
               type: string
-            ip:
-              type: string
+            volume_name:
+              type: string  
+            image_url:
+              type: string  
+            storage_size:
+              type: string  
+            status:
+              type: string              
             cpu:
               type: integer
             memory:
+              type: string              
+            diskname:
+              type: string  
+            interface:  
+              type: string   
+            ip:
               type: string
+            cloud_user:
+              type: string
+            cloud_password:
+              type: string  
     responses:
       200:
         description: VM deployment triggered successfully
@@ -214,14 +74,35 @@ def create_vm():
     """
     data = request.get_json()
 
-    # 🧠 Your logic here: create YAML, push to GitLab, trigger ArgoCD
-    print("Received VM Request:", data)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
 
-    return jsonify({"status": "VM deployment triggered"}), 200
+    required_fields = [
+        "vm_name", "namespace", "volume_name", "image_url",
+        "storage_size", "status", "cpu", "memory", "diskname", "interface", "ip", "cloud_user", "cloud_password"
+    ]
+    missing = [f for f in required_fields if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
 
+    try:
+        
+        yaml_content = render_vm_yaml(data)
 
-@app.route('/api/delete-vm', methods=['POST'])
-def delete_vm():
+        
+        filename = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{data['vm_name']}.yaml"
+        save_yaml_to_file(yaml_content, filename)
+
+        # Push to GitLab
+        push_yaml_to_git(filename,data["namespace"])
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"status": "accepted", "details": data}), 200
+
+@app.route("/api/vm-delete", methods=["POST"])
+def vm_delete():
     """
     Delete VM via GitLab + ArgoCD
     ---
@@ -249,13 +130,14 @@ def delete_vm():
         examples:
           application/json: { "status": "VM deletion triggered" }
     """
+
     data = request.get_json()
+    if not data or "vm_name" not in data or "namespace" not in data:
+        return jsonify({"error": "Missing vm_name or namespace"}), 400
 
-    # 🧠 Your logic here: remove YAML, commit to GitLab, ArgoCD sync
-    print("Received VM Delete Request:", data)
+    try:
+        remove_yaml_from_git(data["vm_name"], data["namespace"])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-    return jsonify({"status": "VM deletion triggered"}), 200
-
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    return jsonify({"status": "deleted", "vm_name": data["vm_name"]}), 200
