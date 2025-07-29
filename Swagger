@@ -62,3 +62,74 @@ def vm_resize():
         return jsonify({"error": str(e)}), 500
 
     return jsonify({"status": "accepted", "details": data}), 200
+
+
+
+import yaml
+from flask import request, jsonify
+
+@app.route("/api/vm-resize", methods=["POST"])
+def vm_resize():
+    """
+    Resize VM resources (CPU/Memory) and update YAML in GitLab via ArgoCD.
+    ---
+    tags:
+      - VM Operations
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: vm
+        required: true
+        schema:
+          type: object
+          example:
+            vm_name: "wh-labocp-007"
+            namespace: "gkp"
+            cpu: 2
+            memory: "8Gi"
+    responses:
+      200:
+        description: VM resize triggered successfully
+        examples:
+          application/json: 
+            status: "VM resize updated"
+    """
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    required_fields = ["vm_name", "namespace", "cpu", "memory"]
+    missing = [f for f in required_fields if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+    vm_name = data["vm_name"]
+    namespace = data["namespace"]
+    cpu = data["cpu"]
+    memory = data["memory"]
+    
+    filepath = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{vm_name}.yaml"
+
+    try:
+        with open(filepath, "r") as f:
+            vm_yaml = yaml.safe_load(f)
+
+        # Update CPU and memory
+        vm_yaml["spec"]["template"]["spec"]["domain"]["cpu"]["cores"] = cpu
+        vm_yaml["spec"]["template"]["spec"]["domain"]["resources"]["requests"]["memory"] = memory
+
+        # Save updated YAML
+        with open(filepath, "w") as f:
+            yaml.safe_dump(vm_yaml, f, default_flow_style=False)
+
+        # Push updated file to GitLab
+        push_yaml_to_git(filepath, namespace)
+
+    except FileNotFoundError:
+        return jsonify({"error": f"YAML file not found for VM '{vm_name}'"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"status": "VM resize updated", "vm_name": vm_name, "cpu": cpu, "memory": memory}), 200
