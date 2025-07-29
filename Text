@@ -1,4 +1,25 @@
- for doc in documents:
+for doc in documents:
+    if doc.get("kind") == "VirtualMachine" and doc.get("metadata", {}).get("name") == vm_name:
+        # Update image URL
+        doc["spec"]["dataVolumeTemplates"][0]["spec"]["source"]["http"]["url"] = image_url
+
+        # Update volume template name
+        doc["spec"]["dataVolumeTemplates"][0]["metadata"]["name"] = volume_name
+
+        # ✅ Update ONLY the dataVolume.name, NOT the volume name
+        for volume in doc["spec"]["template"]["spec"]["volumes"]:
+            if "dataVolume" in volume and volume["name"] == "rootdisk":
+                volume["dataVolume"]["name"] = volume_name  # ✅ This is what you want
+                break
+
+        # Set VM running status (converted to boolean)
+        doc["spec"]["running"] = status.lower() == "true"
+
+        updated = True
+        break
+
+
+for doc in documents:
             if doc.get("kind") == "VirtualMachine" and doc.get("metadata", {}).get("name") == vm_name:
                 doc["spec"]["dataVolumeTemplates"][0]["spec"]["source"]["http"]["url"] = image_url
                 doc["spec"]["dataVolumeTemplates"][0]["metadata"]["name"] = volume_name                
