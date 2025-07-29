@@ -1,190 +1,86 @@
-VM_YAML_TEMPLATE = """\
-apiVersion: v1
-kind: Secret
-metadata:
-  name: richard-secret
-  namespace: {namespace}
-type: Opaque
-stringData:
-  userdata: |
-    #cloud-config
-    runcmd:
-      - 'set -x'
-      - 'sed -i "/# source INSTALL_CLASS/i generate_fbenv" /usr/local/bin/fb-init.sh'
-      - 'cat /etc/INSTALL_CLASS.new >> /etc/INSTALL_CLASS'
-      - '[[ `/usr/bin/cloud-id` == "nocloud" ]] && [[ -f "/usr/local/bin/fb-init.sh" ]] && /usr/local/bin/fb-init.sh'
-      - 'jpmc-dnf-config configure --get-content-hostname > /tmp/jpmc-dnf-config-original-content-hostname'
-      - 'jpmc-dnf-config configure --set-content-hostname=repomirror-lab.jpmchase.net'
-      - "for host in `curl https://repomirror-lab.jpmchase.net/pulp/content/dnf/sources/lrh9/baseos-x86_64.mirrorlist | awk -F/ '{{print $3}}'`; do echo 10.240.47.188 $host >> /etc/hosts;done"
-      - 'pgrep dnsmasq && kill -HUP $(pgrep dnsmasq)'
-      - 'yum install -y sudo'
-    ssh_pwauth: true
-    users:
-      - name: root
-        passwd: Welcome1Welcome1
-      - name: richard
-        gecos: richard
-        sudo: ["ALL=(ALL) NOPASSWD:ALL"]
-        ssh-authorized-keys:
-          - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCpNWrUAIgoaWVvfZio3TSh1fiiNBpyy9IcZeQf0GdjijrtKYbEDubUvtFMLBt9XPeWW9U/yymT817B38eUvQPcMhMFpdoeEXdwVPbFUbvDSR1Ft2kU2L4aTQbVFEBnpfNJT4+QnFN306c0EvUnN+cqeuVFdhSKaZ7ERRZ6EgFPeQw2D54lEok7JR/PNK+t2lIgjK5cM0pLNlBcjs8j1JKV8U4urBxRQkM0HWC0msUK/Bx8+f7olIUJ0z0Z0P9GaAkSKM/rMfxgA1WhlH/B6lNCi3WqJ/GueuU/8X8XFOdXccKA0u6Ma4kEC1JY8mDFOiOEFoI5TCJLjtJZ+b9W934bE/ElT6Z5verA3kFi7Y95FG6VUlJyu6/BnKDbDnWbXqOgKjxKX7qIDKRol0fS0jiR7se1qIKfXgW5fAEtG0dZAhwydyLV1O/YmKqmPQ58uklvmyD/vEBIBAHVuFGsed30KZTkoGtljFYoHN9YSMpPUDDWpwOCBC4MGO5jyynQ1q8= richard@GIEGTIVL07646
-    write_files:
-      - path: /etc/INSTALL_CLASS.new
-        content: |
-          KSfbuser="root"
-          KSfbhostname="{vm_name}.wh2.lab.jpmchase.net"
-          KSfbfqdn="true"
-          KSfbip="10.14.21.134"
-          KSfbnetmask="255.255.255.192"
-          KSfbgateway="10.14.221.129"
-          KSfbdnsns="10.240.47.3 10.240.41.3"
-          KSfbdnssearch="wh2.lab.jpmchase.net"
-          KSlob="GTI"
-          KSregion="Brooklyn"
-          KSsite="lab1"
-          KSnwzone="lab"
-          timezone="UTC"
-          supportTeam="GDEALINUX"
-          KSicpenv="prod"
-          KSenv="dev"
-          KSautomation="icpw"
-          KSgredl="00057"
-          supportTeam="GSO SRVR UNIX"
-          icp_boot_config="false"
-          icp_boot_config_icp_puppet="true"
-          icp_boot_config_icp_puppet_build_script="puppet_run.rb"
-          icp_boot_config_icp_evolven="true"
-          icp_boot_config_icp_powerbroker="true"
-          icp_boot_config_icp_tivoli_itm6="true"
-          icp_boot_config_icp_aim="true"
-          icp_boot_config_icp_fluentd="true"
-          KScohesity="auto"
-          icp_boot_config_icp_crowdstrike="true"
-          icp_boot_config_icp_cida="true"
-          icp_boot_config_icp_cida_node_type="standard"
-          icp_boot_config_icp_cida_template="ucm_auth_security_cida"
-          icp_boot_config_icp_cida_addomain="exchadlab.gielab.jpmchase.net"
-          epv_require_onboarding="false"
-          epv_repave="true"
-          epv_accountType="Shared Interactive"
-          epv_platform="UnixStandalone - Sophia - Root"
-          epv_accountName="root"
-          epv_region="Global"
-          epv_subRegion="Global"
-          epv_networkLocation="LAN"
-          epv_neimId="G024162"
-          epv_locationId="00057"
-          epv_accessGroupName=""
-          sealId="28954"
-          icp_boot_config_remove_root_pub_keys="true"
-    hostname: {vm_name}
-    fqdn: {vm_name}.wh2.lab.jpmchase.net
-    manage_etc_hosts: true
+🖥️ Virtual Machine Provisioning via Python + Swagger + GitLab + ArgoCD + OpenShift
+This document outlines the end-to-end automation implemented for managing Virtual Machine (VM) lifecycle operations — including Pave, Re-Pave, Resize, and Delete — using a custom Python Flask API, integrated with Swagger UI for input, GitLab for version control, and ArgoCD for deployment into OpenShift.
 
----
+🔧 Overview
+We have automated the VM management lifecycle using a fully self-service API layer that allows controlled provisioning and updates of virtual machines into the OpenShift platform. The solution consists of:
 
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {diskname}
-  namespace: {namespace}
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
-  storageClassName: ocs-storagecluster-ceph-rbd-virtualization
+A Python-based API server
 
----  
+Swagger UI for input requests
 
+YAML generation from JSON
 
-apiVersion: kubevirt.io/v1
-kind: VirtualMachine
-metadata:
-  labels:
-    kubevirt.io/vm: {vm_name}
-  name: {vm_name}
-spec:
-  dataVolumeTemplates:
-  - metadata:
-      name: {volume_name}
-    spec:
-      storage:
-        resources:
-          requests:
-            storage: {storage_size}
-        # storageClassName: ocs-storagecluster-ceph-rbd
-        storageClassName: ocs-storagecluster-ceph-rbd-virtualization
-      source:
-        http:
-          url: {image_url}
-            #registry:
-            #url: docker://fred31420.gielab.jpmchase.net:8443/jpmc/ovlt_rhel_9:9.6.1_2025-07-09-100051
-            #secretRef: fred31420-data-source-secret
-            #certConfigMap: fred31420-tls-certs    
-  running: {status}
-  template:
-    metadata:
-      labels:
-        kubevirt.io/vm: {vm_name}
-    spec:
-      domain:
-        firmware:
-          bootloader:
-            efi:
-              secureBoot: false
-        devices:
-          interfaces:
-            - name: {interface}
-              bridge: {{}}
-          disks:
-          - disk:
-              bus: virtio
-            name: rootdisk
-          - disk:
-              bus: virtio
-            name: appdisk  
-          - disk:
-              bus: virtio
-            name: cloudinitdisk
-        machine:
-          type: ""
-        cpu:
-          cores: {cpu}
-        resources:
-          requests:
-            memory: {memory}
-      terminationGracePeriodSeconds: 180
-      networks:
-        - name: {interface}
-          multus:
-            networkName: default/vlan3702
-      volumes:
-      - dataVolume:
-          name: {volume_name}
-        name: rootdisk     
-      - name: appdisk
-        persistentVolumeClaim:
-         claimName: {diskname}          
-      - name: cloudinitdisk
-        cloudInitNoCloud:
-          secretRef:
-            name: richard-secret 
-          networkData: |
-            version: 2
-            ethernets:
-              eth0:
-                dhcp4: false
-                addresses:
-                  - {ip}
-                gateway4: 10.14.221.129
-                nameservers:
-                  addresses:
-                    - 10.240.47.3
-                    - 10.240.41.3
+GitLab integration for GitOps tracking
 
+ArgoCD integration for deployment into OpenShift
 
+🚀 Operations Supported
+Operation	Description
+Pave	Fresh VM provisioning using input parameters (e.g., CPU, memory, IP, etc.).
+Re-Pave	Redeploy a VM with the same name after removing the previous instance (typically in case of broken states).
+Resize	Dynamically update CPU and memory configurations of an existing VM by modifying the YAML in Git and redeploying via ArgoCD.
+Delete	Clean removal of the VM by deleting its YAML from GitLab and syncing with ArgoCD to remove it from the cluster.
 
+📑 Workflow Summary
+User submits a request via Swagger UI
 
+Input is provided in JSON format (with prefilled default values).
 
-"""
+Endpoints: /api/vm-request, /api/vm-resize, /api/vm-delete, /api/vm-repave.
+
+Python Flask backend processes the request
+
+Validates the required fields.
+
+Converts JSON input into a KubeVirt-compliant VM YAML.
+
+Stores the YAML locally.
+
+YAML pushed to GitLab
+
+Each VM is tracked in a Git repository for audit and change history.
+
+Git structure aligns with GitOps best practices.
+
+ArgoCD automatically syncs the updated YAML
+
+ArgoCD detects changes in Git and applies them to the OpenShift cluster.
+
+VMs are created, resized, deleted, or redeployed accordingly.
+
+🔐 Security & Validation
+Only allowed fields are editable through Swagger (e.g., CPU, memory in /vm-resize).
+
+Read-only fields like vm_name, namespace are validated in backend logic to prevent tampering.
+
+YAML validation and Git error handling are implemented.
+
+📁 Git Repository Structure
+Example:
+
+cpp
+Copy
+Edit
+vm-auto/
+  └── data/
+        ├── wh-labocp-001.yaml
+        ├── wh-labocp-002.yaml
+        └── ...
+Each file corresponds to a VM. ArgoCD watches this directory and syncs changes.
+
+📷 Screenshots & Demonstration
+(Add your screenshots below for Swagger UI, GitLab file pushes, ArgoCD sync status, and OpenShift VM console.)
+
+📌 Future Enhancements
+Role-based access for different endpoints
+
+Email notifications on successful operations
+
+Integration with ServiceNow or Jira for request tracking
+
+Support for additional VM parameters (disks, interfaces)
+
+👨‍💻 Contributors
+[Your Name]
+
+[Team Members or Reviewers]
