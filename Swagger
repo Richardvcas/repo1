@@ -1,3 +1,8 @@
+{
+  "error": "expected a single document in the stream\n  in \"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\wh-labocp-007.yaml\", line 1, column 1\nbut found another document\n  in \"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\wh-labocp-007.yaml\", line 82, column 1"
+}
+
+
 @app.route("/api/vm-resize", methods=["POST"])
 def vm_resize():
     """
