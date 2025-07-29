@@ -1,126 +1,202 @@
-apiVersion: v1
-kind: Secret
-metadata:
-  name: richard-secret
-  namespace: gkp
-stringData:
-  userdata: "#cloud-config\nruncmd:\n  - 'set -x'\n  - 'sed -i \"/# source INSTALL_CLASS/i\
-    \ generate_fbenv\" /usr/local/bin/fb-init.sh'\n  - 'cat /etc/INSTALL_CLASS.new\
-    \ >> /etc/INSTALL_CLASS'\n  - '[[ `/usr/bin/cloud-id` == \"nocloud\" ]] && [[\
-    \ -f \"/usr/local/bin/fb-init.sh\" ]] && /usr/local/bin/fb-init.sh'\n  - 'jpmc-dnf-config\
-    \ configure --get-content-hostname > /tmp/jpmc-dnf-config-original-content-hostname'\n\
-    \  - 'jpmc-dnf-config configure --set-content-hostname=repomirror-lab.jpmchase.net'\n\
-    \  - \"for host in `curl https://repomirror-lab.jpmchase.net/pulp/content/dnf/sources/lrh9/baseos-x86_64.mirrorlist\
-    \ | awk -F/ '{print $3}'`; do echo 10.240.47.188 $host >> /etc/hosts;done\"\n\
-    \  - 'pgrep dnsmasq && kill -HUP $(pgrep dnsmasq)'\n  - 'yum install -y sudo'\n\
-    ssh_pwauth: true\nusers:\n  - name: root\n    passwd: Welcome1Welcome1\n  - name:\
-    \ richard\n    gecos: richard\n    sudo: [\"ALL=(ALL) NOPASSWD:ALL\"]\n    ssh-authorized-keys:\n\
-    \      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCpNWrUAIgoaWVvfZio3TSh1fiiNBpyy9IcZeQf0GdjijrtKYbEDubUvtFMLBt9XPeWW9U/yymT817B38eUvQPcMhMFpdoeEXdwVPbFUbvDSR1Ft2kU2L4aTQbVFEBnpfNJT4+QnFN306c0EvUnN+cqeuVFdhSKaZ7ERRZ6EgFPeQw2D54lEok7JR/PNK+t2lIgjK5cM0pLNlBcjs8j1JKV8U4urBxRQkM0HWC0msUK/Bx8+f7olIUJ0z0Z0P9GaAkSKM/rMfxgA1WhlH/B6lNCi3WqJ/GueuU/8X8XFOdXccKA0u6Ma4kEC1JY8mDFOiOEFoI5TCJLjtJZ+b9W934bE/ElT6Z5verA3kFi7Y95FG6VUlJyu6/BnKDbDnWbXqOgKjxKX7qIDKRol0fS0jiR7se1qIKfXgW5fAEtG0dZAhwydyLV1O/YmKqmPQ58uklvmyD/vEBIBAHVuFGsed30KZTkoGtljFYoHN9YSMpPUDDWpwOCBC4MGO5jyynQ1q8=\
-    \ richard@GIEGTIVL07646\nwrite_files:\n  - path: /etc/INSTALL_CLASS.new\n    content:\
-    \ |\n      KSfbuser=\"root\"\n      KSfbhostname=\"wh-labocp-007.wh2.lab.jpmchase.net\"\
-    \n      KSfbfqdn=\"true\"\n      KSfbip=\"10.14.21.134\"\n      KSfbnetmask=\"\
-    255.255.255.192\"\n      KSfbgateway=\"10.14.221.129\"\n      KSfbdnsns=\"10.240.47.3\
-    \ 10.240.41.3\"\n      KSfbdnssearch=\"wh2.lab.jpmchase.net\"\n      KSlob=\"\
-    GTI\"\n      KSregion=\"Brooklyn\"\n      KSsite=\"lab1\"\n      KSnwzone=\"lab\"\
-    \n      timezone=\"UTC\"\n      supportTeam=\"GDEALINUX\"\n      KSicpenv=\"prod\"\
-    \n      KSenv=\"dev\"\n      KSautomation=\"icpw\"\n      KSgredl=\"00057\"\n\
-    \      supportTeam=\"GSO SRVR UNIX\"\n      icp_boot_config=\"false\"\n      icp_boot_config_icp_puppet=\"\
-    true\"\n      icp_boot_config_icp_puppet_build_script=\"puppet_run.rb\"\n    \
-    \  icp_boot_config_icp_evolven=\"true\"\n      icp_boot_config_icp_powerbroker=\"\
-    true\"\n      icp_boot_config_icp_tivoli_itm6=\"true\"\n      icp_boot_config_icp_aim=\"\
-    true\"\n      icp_boot_config_icp_fluentd=\"true\"\n      KScohesity=\"auto\"\n\
-    \      icp_boot_config_icp_crowdstrike=\"true\"\n      icp_boot_config_icp_cida=\"\
-    true\"\n      icp_boot_config_icp_cida_node_type=\"standard\"\n      icp_boot_config_icp_cida_template=\"\
-    ucm_auth_security_cida\"\n      icp_boot_config_icp_cida_addomain=\"exchadlab.gielab.jpmchase.net\"\
-    \n      epv_require_onboarding=\"false\"\n      epv_repave=\"true\"\n      epv_accountType=\"\
-    Shared Interactive\"\n      epv_platform=\"UnixStandalone - Sophia - Root\"\n\
-    \      epv_accountName=\"root\"\n      epv_region=\"Global\"\n      epv_subRegion=\"\
-    Global\"\n      epv_networkLocation=\"LAN\"\n      epv_neimId=\"G024162\"\n  \
-    \    epv_locationId=\"00057\"\n      epv_accessGroupName=\"\"\n      sealId=\"\
-    28954\"\n      icp_boot_config_remove_root_pub_keys=\"true\"\nhostname: wh-labocp-007\n\
-    fqdn: wh-labocp-007.wh2.lab.jpmchase.net\nmanage_etc_hosts: true\n"
-type: Opaque
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: appdisk007
-  namespace: gkp
-spec:
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
-  storageClassName: ocs-storagecluster-ceph-rbd-virtualization
----
+cloud-init formats
+cloud-init can be passed in a number of ways to the guest, you can read more here https://kubevirt.io/user-guide/user_workloads/startup_scripts/#cloud-init 
+
+
+
+cloud-init as a secret
+Create your cloud-init file, most of the data here should be unique to each guest VM. Please note some of the stuff here under runcmd will go to image so that it will be cleaner.
+
+
+
+cat wh-labocp-002-cloud-init.yaml
+#cloud-config
+runcmd:
+  - 'set -x'
+  - 'sed -i "/# source INSTALL_CLASS/i generate_fbenv" /usr/local/bin/fb-init.sh' 
+  - 'cat /etc/INSTALL_CLASS.new >> /etc/INSTALL_CLASS'
+  - '[[ `/usr/bin/cloud-id` == "nocloud" ]] && [[ -f "/usr/local/bin/fb-init.sh" ]] && /usr/local/bin/fb-init.sh'
+  - 'jpmc-dnf-config configure --get-content-hostname > /tmp/jpmc-dnf-config-original-content-hostname'
+  # lab only
+  # ---------
+  - 'jpmc-dnf-config configure --set-content-hostname=repomirror-lab.jpmchase.net'
+  # set lab DNF mirrorlist hostname aliases
+  - "for host in `curl https://repomirror-lab.jpmchase.net/pulp/content/dnf/sources/lrh9/baseos-x86_64.mirrorlist | awk -F/ '{print $3}'`; do echo 10.240.47.188 $host >> /etc/hosts;done"
+  # reload dnsmasq to pick up the new /etc/hosts entries
+  - 'pgrep dnsmasq && kill -HUP $(pgrep dnsmasq)'
+  # everything else
+  - 'yum install -y sudo'
+# allow password auth
+ssh_pwauth: true
+users:
+  - name: root
+    # mkpasswd -m sha-512 --rounds=6
+    # m-----1
+    hashed_passwd: $6$rounds=1000$DiGeA4uGWXSuaEz9$KyunUR3wwSwIarSxHk6MXmgpXUVZIknrsyCPYnHrZMg2R9PCxr0XYxqi.Ig6IUZXORupSs2hp46FhJOb2bnjl1
+  - name: wilmauser
+    gecos: Wilma User
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    ssh-authorized-keys:
+      - <<< YOUR SSH KEY HERE >>>
+write_files:
+  - path: /etc/INSTALL_CLASS.new
+    content: |
+      KSfbuser="root"
+      KSfbhostname="wh-labocp-002.wh2.lab.jpmchase.net"
+      KSfbfqdn="true"
+      KSfbip="110.14.221.132"
+      KSfbnetmask="255.255.255.192"
+      KSfbgateway="10.14.221.129"
+      KSfbdnsns="10.240.47.3 10.240.41.3"
+      KSfbdnssearch="wh2.lab.jpmchase.net"
+      KSlob="GTI"
+      KSregion="Brooklyn"
+      KSsite="lab1"
+      KSnwzone="lab"
+      timezone="UTC"
+      supportTeam="GDEALINUX"
+      KSicpenv="prod"
+      KSenv="dev"
+      KSautomation="icpw"
+      KSgredl="00057"
+      supportTeam="GSO SRVR UNIX"
+      icp_boot_config="false"
+      icp_boot_config_icp_puppet="true"
+      icp_boot_config_icp_puppet_build_script="puppet_run.rb"
+      icp_boot_config_icp_evolven="true"
+      icp_boot_config_icp_powerbroker="true"
+      icp_boot_config_icp_tivoli_itm6="true"
+      icp_boot_config_icp_aim="true"
+      icp_boot_config_icp_fluentd="true"
+      KScohesity="auto"
+      icp_boot_config_icp_crowdstrike="true"
+      icp_boot_config_icp_cida="true"
+      icp_boot_config_icp_cida_node_type="standard"
+      icp_boot_config_icp_cida_template="ucm_auth_security_cida"
+      icp_boot_config_icp_cida_addomain="exchadlab.gielab.jpmchase.net"
+      epv_require_onboarding="false"
+      epv_repave="true"
+      epv_accountType="Shared Interactive"
+      epv_platform="UnixStandalone - Sophia - Root"
+      epv_accountName="root"
+      epv_region="Global"
+      epv_subRegion="Global"
+      epv_networkLocation="LAN"
+      epv_neimId="G024162"
+      epv_locationId="00057"
+      epv_accessGroupName=""
+      sealId="28954"
+      icp_boot_config_remove_root_pub_keys="true"
+hostname: wh-labocp-002
+fqdn: wh-labocp-002.wh2.lab.jpmchase.net
+manage_etc_hosts: true
+
+
+
+Create secret using above userdata
+
+
+
+oc create secret generic wh-labocp-002-cloud-init --from-file=userdata=wh-labocp-002-cloud-init.yaml -n linuxeng
+
+
+
+
+Apply vm definition , make sure to update Network section specific to Guest VM
+
+
+
+Full Example
+
+
 apiVersion: kubevirt.io/v1
 kind: VirtualMachine
 metadata:
   labels:
-    kubevirt.io/vm: wh-labocp-007
-  name: wh-labocp-007
+    kubevirt.io/vm: wh-labocp-002
+  name: wh-labocp-002
 spec:
   dataVolumeTemplates:
   - metadata:
-      name: wh-labocp-007-root9disk
+      name: vm-fred3-dv1
     spec:
-      source:
-        http:
-          url: http://fred11420.gielab.jpmchase.net/images/img_ovlt_rhel_9_9.6.1_2025-07-09-100051.qcow2
       storage:
         resources:
           requests:
-            storage: 30Gi
+            storage: 110Gi
+        # storageClassName: ocs-storagecluster-ceph-rbd
         storageClassName: ocs-storagecluster-ceph-rbd-virtualization
+      source:
+        http:
+          url: http://fred11420.gielab.jpmchase.net/images/img_ovlt_rhel_9_9.6.1_2025-07-09-100051.qcow2
+            #registry:
+            #url: docker://fred31420.gielab.jpmchase.net:8443/jpmc/ovlt_rhel_9:9.6.1_2025-07-09-100051
+            #secretRef: fred31420-data-source-secret
+            #certConfigMap: fred31420-tls-certs
+    status: {}
   running: true
   template:
     metadata:
       labels:
-        kubevirt.io/vm: wh-labocp-007
+        kubevirt.io/vm: wh-labocp-002
     spec:
       domain:
-        cpu:
-          cores: 1
-        devices:
-          disks:
-          - disk:
-              bus: virtio
-            name: rootdisk
-          - disk:
-              bus: virtio
-            name: appdisk
-          - disk:
-              bus: virtio
-            name: cloudinitdisk
-          interfaces:
-          - bridge: {}
-            name: eth0
         firmware:
           bootloader:
             efi:
               secureBoot: false
+        devices:
+          interfaces:
+            - name: nic-gray-wh-labocp-002
+              bridge: {}
+          disks:
+          - disk:
+              bus: virtio
+            name: vm-fred3-dv1
+          - disk:
+              bus: virtio
+            name: cloudinitdisk
         machine:
-          type: ''
+          type: ""
+        cpu:
+          cores: 2
         resources:
           requests:
-            memory: 4Gi
-      networks:
-      - multus:
-          networkName: default/vlan3702
-        name: eth0
+            memory: 8Gi
       terminationGracePeriodSeconds: 180
+      networks:
+        - name: nic-gray-wh-labocp-002
+          multus:
+            networkName: default/vlan3702
       volumes:
       - dataVolume:
-          name: wh-labocp-007-root9disk
-        name: rootdisk
-      - name: appdisk
-        persistentVolumeClaim:
-          claimName: appdisk007
-      - cloudInitNoCloud:
-          networkData: "version: 2\nethernets:\n  eth0:\n    dhcp4: false\n    addresses:\n\
-            \      - 10.14.221.137/26\n    gateway4: 10.14.221.129\n    nameservers:\n\
-            \      addresses:\n        - 10.240.47.3\n        - 10.240.41.3\n"
+          name: vm-fred3-dv1
+        name: vm-fred3-dv1
+      - name: cloudinitdisk
+        cloudInitNoCloud:
           secretRef:
-            name: richard-secret
-        name: cloudinitdisk
+            name: wh-labocp-002-cloud-init
+          networkData: |
+            version: 2
+            ethernets:
+              eth0:
+                dhcp4: false
+                addresses:
+                  - 10.14.221.132/26
+                gateway4: 10.14.221.129
+                nameservers:
+                  addresses:
+                    - 10.240.47.3
+                    - 10.240.41.3
+
+
+Once VM is up, you should be able to ssh and run ansible playbook to configure agents.
+
+Create local playbook and run (only for LAB), 
+
+From lab:
+
+Note: remote exec - currently puppet and sophia are working, crowdstrike requires proxy access
+
+
+
+ssh -t -o StrictHostKeyChecking=no root@wh-labocp-002.wh2.lab.jpmchase.net -i ~/.ssh/kvm_rsa 'ansible-playbook /var/tmp/icp_boot_config/icp_boot_config.yml --connection=local'
