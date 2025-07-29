@@ -1,3 +1,57 @@
+import yaml
+from flask import request, jsonify
+
+@app.route("/api/vm-resize", methods=["POST"])
+def vm_resize():
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    required_fields = ["vm_name", "namespace", "cpu", "memory"]
+    missing = [f for f in required_fields if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+    vm_name = data["vm_name"]
+    namespace = data["namespace"]
+    cpu = data["cpu"]
+    memory = data["memory"]
+    
+    filepath = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{vm_name}.yaml"
+
+    try:
+        with open(filepath, "r") as f:
+            documents = list(yaml.safe_load_all(f))
+
+        # Modify the VM document
+        updated = False
+        for doc in documents:
+            if doc.get("kind") == "VirtualMachine" and doc.get("metadata", {}).get("name") == vm_name:
+                doc["spec"]["template"]["spec"]["domain"]["cpu"]["cores"] = cpu
+                doc["spec"]["template"]["spec"]["domain"]["resources"]["requests"]["memory"] = memory
+                updated = True
+                break
+
+        if not updated:
+            return jsonify({"error": f"VirtualMachine '{vm_name}' not found in YAML"}), 404
+
+        # Save back all documents
+        with open(filepath, "w") as f:
+            yaml.safe_dump_all(documents, f, default_flow_style=False)
+
+        # Push updated file to GitLab
+        push_yaml_to_git(filepath, namespace)
+
+    except FileNotFoundError:
+        return jsonify({"error": f"YAML file not found for VM '{vm_name}'"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"status": "VM resize updated", "vm_name": vm_name, "cpu": cpu, "memory": memory}), 200
+
+
+
 {
   "error": "expected a single document in the stream\n  in \"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\wh-labocp-007.yaml\", line 1, column 1\nbut found another document\n  in \"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\wh-labocp-007.yaml\", line 82, column 1"
 }
