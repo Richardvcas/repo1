@@ -1,91 +1,64 @@
-from flask import Flask, request, jsonify
-from flasgger import Swagger
-
-app = Flask(__name__)
-swagger = Swagger(app)
-
-@app.route('/api/vm-request', methods=['POST'])
-def create_vm():
+@app.route("/api/vm-resize", methods=["POST"])
+def vm_resize():
     """
-    Trigger VM Deployment via GitLab + ArgoCD
+    VM Resize via GitLab + ArgoCD
     ---
     tags:
       - VM Operations
     consumes:
       - application/json
     parameters:
-      - name: vm
-        in: body
+      - in: body
+        name: vm
         required: true
         schema:
-          id: VMRequest
-          required:
-            - vm_name
-            - namespace
-            - ip
-            - cpu
-            - memory
-          properties:
-            vm_name:
-              type: string
-            namespace:
-              type: string
-            ip:
-              type: string
-            cpu:
-              type: integer
-            memory:
-              type: string
+          type: object
+          example:
+            vm_name: "wh-labocp-007"            
+            namespace: "gkp"
+            volume_name: "wh-labocp-007-rootdisk"
+            image_url: "http://10.14.222.30:8080/rhel-8.10-x86_64-kvm.qcow2"
+            storage_size: "30Gi"
+            status: "true"
+            cpu: 1
+            memory: "4Gi"
+            diskname: "appdisk007"
+            interface: "eth0"
+            ip: "10.14.221.137/26"
+            cloud_user: "clouduser"
+            cloud_password: "a23456"
     responses:
       200:
         description: VM deployment triggered successfully
         examples:
-          application/json: { "status": "VM deployment triggered" }
+          application/json: 
+            status: "VM deployment triggered"
     """
     data = request.get_json()
 
-    # 🧠 Your logic here: create YAML, push to GitLab, trigger ArgoCD
-    print("Received VM Request:", data)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
 
-    return jsonify({"status": "VM deployment triggered"}), 200
+    required_fields = [
+        "vm_name", "namespace", "volume_name", "image_url",
+        "storage_size", "status", "cpu", "memory", "diskname", "interface", "ip", "cloud_user", "cloud_password"
+    ]
+    missing = [f for f in required_fields if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
 
+    try:
+        
+        yaml_content = render_vm_yaml(data)
 
-@app.route('/api/delete-vm', methods=['POST'])
-def delete_vm():
-    """
-    Delete VM via GitLab + ArgoCD
-    ---
-    tags:
-      - VM Operations
-    consumes:
-      - application/json
-    parameters:
-      - name: vm
-        in: body
-        required: true
-        schema:
-          id: DeleteVM
-          required:
-            - vm_name
-            - namespace
-          properties:
-            vm_name:
-              type: string
-            namespace:
-              type: string
-    responses:
-      200:
-        description: VM deletion triggered successfully
-        examples:
-          application/json: { "status": "VM deletion triggered" }
-    """
-    data = request.get_json()
+        
+        filename = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{data['vm_name']}.yaml"
+        save_yaml_to_file(yaml_content, filename)
 
-    # 🧠 Your logic here: remove YAML, commit to GitLab, ArgoCD sync
-    print("Received VM Delete Request:", data)
+        # Push to GitLab
+        push_yaml_to_git(filename,data["namespace"])
 
-    return jsonify({"status": "VM deletion triggered"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    return jsonify({"status": "accepted", "details": data}), 200
