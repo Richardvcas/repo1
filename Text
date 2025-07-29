@@ -1,86 +1,126 @@
-🖥️ Virtual Machine Provisioning via Python + Swagger + GitLab + ArgoCD + OpenShift
-This document outlines the end-to-end automation implemented for managing Virtual Machine (VM) lifecycle operations — including Pave, Re-Pave, Resize, and Delete — using a custom Python Flask API, integrated with Swagger UI for input, GitLab for version control, and ArgoCD for deployment into OpenShift.
-
-🔧 Overview
-We have automated the VM management lifecycle using a fully self-service API layer that allows controlled provisioning and updates of virtual machines into the OpenShift platform. The solution consists of:
-
-A Python-based API server
-
-Swagger UI for input requests
-
-YAML generation from JSON
-
-GitLab integration for GitOps tracking
-
-ArgoCD integration for deployment into OpenShift
-
-🚀 Operations Supported
-Operation	Description
-Pave	Fresh VM provisioning using input parameters (e.g., CPU, memory, IP, etc.).
-Re-Pave	Redeploy a VM with the same name after removing the previous instance (typically in case of broken states).
-Resize	Dynamically update CPU and memory configurations of an existing VM by modifying the YAML in Git and redeploying via ArgoCD.
-Delete	Clean removal of the VM by deleting its YAML from GitLab and syncing with ArgoCD to remove it from the cluster.
-
-📑 Workflow Summary
-User submits a request via Swagger UI
-
-Input is provided in JSON format (with prefilled default values).
-
-Endpoints: /api/vm-request, /api/vm-resize, /api/vm-delete, /api/vm-repave.
-
-Python Flask backend processes the request
-
-Validates the required fields.
-
-Converts JSON input into a KubeVirt-compliant VM YAML.
-
-Stores the YAML locally.
-
-YAML pushed to GitLab
-
-Each VM is tracked in a Git repository for audit and change history.
-
-Git structure aligns with GitOps best practices.
-
-ArgoCD automatically syncs the updated YAML
-
-ArgoCD detects changes in Git and applies them to the OpenShift cluster.
-
-VMs are created, resized, deleted, or redeployed accordingly.
-
-🔐 Security & Validation
-Only allowed fields are editable through Swagger (e.g., CPU, memory in /vm-resize).
-
-Read-only fields like vm_name, namespace are validated in backend logic to prevent tampering.
-
-YAML validation and Git error handling are implemented.
-
-📁 Git Repository Structure
-Example:
-
-cpp
-Copy
-Edit
-vm-auto/
-  └── data/
-        ├── wh-labocp-001.yaml
-        ├── wh-labocp-002.yaml
-        └── ...
-Each file corresponds to a VM. ArgoCD watches this directory and syncs changes.
-
-📷 Screenshots & Demonstration
-(Add your screenshots below for Swagger UI, GitLab file pushes, ArgoCD sync status, and OpenShift VM console.)
-
-📌 Future Enhancements
-Role-based access for different endpoints
-
-Email notifications on successful operations
-
-Integration with ServiceNow or Jira for request tracking
-
-Support for additional VM parameters (disks, interfaces)
-
-👨‍💻 Contributors
-[Your Name]
-
-[Team Members or Reviewers]
+apiVersion: v1
+kind: Secret
+metadata:
+  name: richard-secret
+  namespace: gkp
+stringData:
+  userdata: "#cloud-config\nruncmd:\n  - 'set -x'\n  - 'sed -i \"/# source INSTALL_CLASS/i\
+    \ generate_fbenv\" /usr/local/bin/fb-init.sh'\n  - 'cat /etc/INSTALL_CLASS.new\
+    \ >> /etc/INSTALL_CLASS'\n  - '[[ `/usr/bin/cloud-id` == \"nocloud\" ]] && [[\
+    \ -f \"/usr/local/bin/fb-init.sh\" ]] && /usr/local/bin/fb-init.sh'\n  - 'jpmc-dnf-config\
+    \ configure --get-content-hostname > /tmp/jpmc-dnf-config-original-content-hostname'\n\
+    \  - 'jpmc-dnf-config configure --set-content-hostname=repomirror-lab.jpmchase.net'\n\
+    \  - \"for host in `curl https://repomirror-lab.jpmchase.net/pulp/content/dnf/sources/lrh9/baseos-x86_64.mirrorlist\
+    \ | awk -F/ '{print $3}'`; do echo 10.240.47.188 $host >> /etc/hosts;done\"\n\
+    \  - 'pgrep dnsmasq && kill -HUP $(pgrep dnsmasq)'\n  - 'yum install -y sudo'\n\
+    ssh_pwauth: true\nusers:\n  - name: root\n    passwd: Welcome1Welcome1\n  - name:\
+    \ richard\n    gecos: richard\n    sudo: [\"ALL=(ALL) NOPASSWD:ALL\"]\n    ssh-authorized-keys:\n\
+    \      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCpNWrUAIgoaWVvfZio3TSh1fiiNBpyy9IcZeQf0GdjijrtKYbEDubUvtFMLBt9XPeWW9U/yymT817B38eUvQPcMhMFpdoeEXdwVPbFUbvDSR1Ft2kU2L4aTQbVFEBnpfNJT4+QnFN306c0EvUnN+cqeuVFdhSKaZ7ERRZ6EgFPeQw2D54lEok7JR/PNK+t2lIgjK5cM0pLNlBcjs8j1JKV8U4urBxRQkM0HWC0msUK/Bx8+f7olIUJ0z0Z0P9GaAkSKM/rMfxgA1WhlH/B6lNCi3WqJ/GueuU/8X8XFOdXccKA0u6Ma4kEC1JY8mDFOiOEFoI5TCJLjtJZ+b9W934bE/ElT6Z5verA3kFi7Y95FG6VUlJyu6/BnKDbDnWbXqOgKjxKX7qIDKRol0fS0jiR7se1qIKfXgW5fAEtG0dZAhwydyLV1O/YmKqmPQ58uklvmyD/vEBIBAHVuFGsed30KZTkoGtljFYoHN9YSMpPUDDWpwOCBC4MGO5jyynQ1q8=\
+    \ richard@GIEGTIVL07646\nwrite_files:\n  - path: /etc/INSTALL_CLASS.new\n    content:\
+    \ |\n      KSfbuser=\"root\"\n      KSfbhostname=\"wh-labocp-007.wh2.lab.jpmchase.net\"\
+    \n      KSfbfqdn=\"true\"\n      KSfbip=\"10.14.21.134\"\n      KSfbnetmask=\"\
+    255.255.255.192\"\n      KSfbgateway=\"10.14.221.129\"\n      KSfbdnsns=\"10.240.47.3\
+    \ 10.240.41.3\"\n      KSfbdnssearch=\"wh2.lab.jpmchase.net\"\n      KSlob=\"\
+    GTI\"\n      KSregion=\"Brooklyn\"\n      KSsite=\"lab1\"\n      KSnwzone=\"lab\"\
+    \n      timezone=\"UTC\"\n      supportTeam=\"GDEALINUX\"\n      KSicpenv=\"prod\"\
+    \n      KSenv=\"dev\"\n      KSautomation=\"icpw\"\n      KSgredl=\"00057\"\n\
+    \      supportTeam=\"GSO SRVR UNIX\"\n      icp_boot_config=\"false\"\n      icp_boot_config_icp_puppet=\"\
+    true\"\n      icp_boot_config_icp_puppet_build_script=\"puppet_run.rb\"\n    \
+    \  icp_boot_config_icp_evolven=\"true\"\n      icp_boot_config_icp_powerbroker=\"\
+    true\"\n      icp_boot_config_icp_tivoli_itm6=\"true\"\n      icp_boot_config_icp_aim=\"\
+    true\"\n      icp_boot_config_icp_fluentd=\"true\"\n      KScohesity=\"auto\"\n\
+    \      icp_boot_config_icp_crowdstrike=\"true\"\n      icp_boot_config_icp_cida=\"\
+    true\"\n      icp_boot_config_icp_cida_node_type=\"standard\"\n      icp_boot_config_icp_cida_template=\"\
+    ucm_auth_security_cida\"\n      icp_boot_config_icp_cida_addomain=\"exchadlab.gielab.jpmchase.net\"\
+    \n      epv_require_onboarding=\"false\"\n      epv_repave=\"true\"\n      epv_accountType=\"\
+    Shared Interactive\"\n      epv_platform=\"UnixStandalone - Sophia - Root\"\n\
+    \      epv_accountName=\"root\"\n      epv_region=\"Global\"\n      epv_subRegion=\"\
+    Global\"\n      epv_networkLocation=\"LAN\"\n      epv_neimId=\"G024162\"\n  \
+    \    epv_locationId=\"00057\"\n      epv_accessGroupName=\"\"\n      sealId=\"\
+    28954\"\n      icp_boot_config_remove_root_pub_keys=\"true\"\nhostname: wh-labocp-007\n\
+    fqdn: wh-labocp-007.wh2.lab.jpmchase.net\nmanage_etc_hosts: true\n"
+type: Opaque
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: appdisk007
+  namespace: gkp
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: ocs-storagecluster-ceph-rbd-virtualization
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  labels:
+    kubevirt.io/vm: wh-labocp-007
+  name: wh-labocp-007
+spec:
+  dataVolumeTemplates:
+  - metadata:
+      name: wh-labocp-007-rootdisk
+    spec:
+      source:
+        http:
+          url: http://10.14.222.30:8080/rhel-8.10-x86_64-kvm.qcow2
+      storage:
+        resources:
+          requests:
+            storage: 30Gi
+        storageClassName: ocs-storagecluster-ceph-rbd-virtualization
+  running: true
+  template:
+    metadata:
+      labels:
+        kubevirt.io/vm: wh-labocp-007
+    spec:
+      domain:
+        cpu:
+          cores: 2
+        devices:
+          disks:
+          - disk:
+              bus: virtio
+            name: rootdisk
+          - disk:
+              bus: virtio
+            name: appdisk
+          - disk:
+              bus: virtio
+            name: cloudinitdisk
+          interfaces:
+          - bridge: {}
+            name: eth0
+        firmware:
+          bootloader:
+            efi:
+              secureBoot: false
+        machine:
+          type: ''
+        resources:
+          requests:
+            memory: 8Gi
+      networks:
+      - multus:
+          networkName: default/vlan3702
+        name: eth0
+      terminationGracePeriodSeconds: 180
+      volumes:
+      - dataVolume:
+          name: wh-labocp-007-rootdisk
+        name: rootdisk
+      - name: appdisk
+        persistentVolumeClaim:
+          claimName: appdisk007
+      - cloudInitNoCloud:
+          networkData: "version: 2\nethernets:\n  eth0:\n    dhcp4: false\n    addresses:\n\
+            \      - 10.14.221.137/26\n    gateway4: 10.14.221.129\n    nameservers:\n\
+            \      addresses:\n        - 10.240.47.3\n        - 10.240.41.3\n"
+          secretRef:
+            name: richard-secret
+        name: cloudinitdisk
