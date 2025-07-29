@@ -1,3 +1,83 @@
+@app.route("/api/vm-repave", methods=["POST"])
+def vm_repave():
+    """
+    VM Repave .
+    ---
+    tags:
+      - VM Operations
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: vm
+        required: true
+        schema:
+          type: object
+          example:
+            vm_name: "wh-labocp-007"
+            namespace: "gkp"
+            volume_name: "wh-labocp-007-rootdisk"
+            image_url: "http://10.14.222.30:8080/rhel-8.10-x86_64-kvm.qcow2"
+            status: "true"            
+    responses:
+      200:
+        description: VM repave triggered successfully
+        examples:
+          application/json: 
+            status: "VM repave updated"
+    """
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    required_fields = ["vm_name", "namespace", "volume_name", "image_url", "status"]
+    missing = [f for f in required_fields if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+    vm_name = data["vm_name"]
+    namespace = data["namespace"]
+    volume_name = data["volume_name"]
+    image_url = data["image_url"]
+    status = data["image_url"]
+    
+    filepath = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{vm_name}.yaml"
+
+    try:
+        with open(filepath, "r") as f:
+            documents = list(yaml.safe_load_all(f))
+
+        # Modify the VM document
+        updated = False
+        for doc in documents:
+            if doc.get("kind") == "VirtualMachine" and doc.get("metadata", {}).get("name") == vm_name:
+                doc["spec"]["source"]["http"]["url"] = image_url
+                doc["spec"]["dataVolumeTemplates"]["name"] = volume_name                
+                doc["spec"]["template"]["spec"]["domain"]["volums"]["name"] = volume_name
+                doc["spec"]["dataVolumeTemplates"]["running"] = status
+                updated = True
+                break
+
+        if not updated:
+            return jsonify({"error": f"VirtualMachine '{vm_name}' not found in YAML"}), 404
+
+        # Save back all documents
+        with open(filepath, "w") as f:
+            yaml.safe_dump_all(documents, f, default_flow_style=False)
+
+        # Push updated file to GitLab
+        push_yaml_to_git(filepath, namespace)
+
+    except FileNotFoundError:
+        return jsonify({"error": f"YAML file not found for VM '{vm_name}'"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"status": "VM Repave updated", "vm_name": vm_name}), 200
+
+
+
 import yaml
 from flask import request, jsonify
 
