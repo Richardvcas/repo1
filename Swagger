@@ -1,3 +1,31 @@
+# Update image URL in dataVolumeTemplates[0].spec.source.http.url
+doc["spec"]["dataVolumeTemplates"][0]["spec"]["source"]["http"]["url"] = image_url
+
+# Update volume name in metadata.name inside dataVolumeTemplates[0]
+doc["spec"]["dataVolumeTemplates"][0]["metadata"]["name"] = volume_name
+
+# Update running status
+doc["spec"]["running"] = status  # This must be a boolean (True/False)
+
+# Optional: Update volume name in template.spec.volumes[0]
+doc["spec"]["template"]["spec"]["volumes"][0]["dataVolume"]["name"] = volume_name
+doc["spec"]["template"]["spec"]["volumes"][0]["name"] = volume_name
+
+
+-----
+
+for doc in documents:
+    if doc.get("kind") == "VirtualMachine" and doc.get("metadata", {}).get("name") == vm_name:
+        doc["spec"]["dataVolumeTemplates"][0]["spec"]["source"]["http"]["url"] = image_url
+        doc["spec"]["dataVolumeTemplates"][0]["metadata"]["name"] = volume_name
+        doc["spec"]["template"]["spec"]["volumes"][0]["name"] = volume_name
+        doc["spec"]["template"]["spec"]["volumes"][0]["dataVolume"]["name"] = volume_name
+        doc["spec"]["running"] = True if status.lower() == "true" else False
+        updated = True
+        break
+
+
+
 @app.route("/api/vm-repave", methods=["POST"])
 def vm_repave():
     """
