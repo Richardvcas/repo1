@@ -73,7 +73,7 @@ spec:
           requests:
             storage: 30Gi
         storageClassName: ocs-storagecluster-ceph-rbd-virtualization
-  running: true
+  running: false
   template:
     metadata:
       labels:
@@ -81,7 +81,7 @@ spec:
     spec:
       domain:
         cpu:
-          cores: 2
+          cores: 1
         devices:
           disks:
           - disk:
@@ -104,7 +104,7 @@ spec:
           type: ''
         resources:
           requests:
-            memory: 8Gi
+            memory: 4Gi
       networks:
       - multus:
           networkName: default/vlan3702
@@ -113,7 +113,7 @@ spec:
       volumes:
       - dataVolume:
           name: wh-labocp-007-rootdisk
-        name: rootdisk
+        name: wh-labocp-007-rootdisk
       - name: appdisk
         persistentVolumeClaim:
           claimName: appdisk007
