@@ -308,5 +308,133 @@ stringData:
           sealId="28954"
           icp_boot_config_remove_root_pub_keys="true"
     hostname: wh-labocp-009
-    fqdn: wh-labocp-009.wh2.lab.jpmchase.net
+    fqdn: wh-labocp-009.wh2.lab.
+
+
+
+
+jpmchase.net
+
+
+
+Excellent follow-up. Let’s break down why the ServiceAccount in Step 3 is important, and whether it is strictly required.
+
+
+---
+
+✅ Why You Need a ServiceAccount in the Job
+
+When you run a Job in Kubernetes (including OpenShift), it runs in a Pod, and that Pod needs permissions to perform actions like:
+
+> oc patch vm my-vm -n gkp --type=merge -p '{"spec":{"running":false}}'
+
+
+
+This is a KubeVirt action (stop/start VM), and by default, normal Pods don’t have permission to perform it.
+
+
+---
+
+🔒 Default Behavior (Without ServiceAccount)
+
+A Job will use the default ServiceAccount of the namespace.
+
+That default account does NOT have permission to manage VMs (i.e., no patch on VirtualMachine kind).
+
+So the restart command in your Job will fail with a permissions error like:
+
+
+Error from server (Forbidden): virtualmachines.kubevirt.io "my-vm" is forbidden: User "system:serviceaccount:gkp:default" cannot patch resource
+
+
+---
+
+✅ Solution: Create and Bind a Custom ServiceAccount
+
+1. Create a named ServiceAccount:
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vm-automation-sa
+  namespace: gkp
+
+2. Bind that ServiceAccount to required permissions (RoleBinding):
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: vm-automation-binding
+  namespace: gkp
+subjects:
+  - kind: ServiceAccount
+    name: vm-automation-sa
+    namespace: gkp
+roleRef:
+  kind: ClusterRole
+  name: kubevirt.io:edit  # this includes patching VMs
+  apiGroup: rbac.authorization.k8s.io
+
+> kubevirt.io:edit is a built-in ClusterRole that gives full control over VMs in that namespace.
+
+
+
+
+---
+
+3. Reference that SA in your Job YAML
+
+spec:
+  template:
+    spec:
+      serviceAccountName: vm-automation-sa
+
+
+---
+
+✅ What Happens Now
+
+The Job’s Pod runs using vm-automation-sa.
+
+That SA has permission to patch the VM (because of the RoleBinding).
+
+Restart works ✅
+
+Everything is secure and scoped only to that namespace ✅
+
+
+
+---
+
+🔒 Without This Setup:
+
+The Job will run
+
+But the oc patch will fail with “forbidden” error
+
+No restart → CPU changes won’t take effect
+
+
+
+---
+
+🧠 Summary
+
+Question	Answer
+
+Is the ServiceAccount required?	✅ Yes, if you want to restart the VM from a Job securely.
+Why is it needed?	To give the Job permission to patch (stop/start) the VM
+How is it done?	Create ServiceAccount + RoleBinding to kubevirt.io:edit role
+
+
+
+---
+
+Let me know if you want:
+
+A YAML bundle with this SA and RoleBinding ready to apply
+
+Python code to generate or check if the SA already exists before applying it automatically
+
+
     manage_etc_hosts: true
