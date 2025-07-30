@@ -1,174 +1,19 @@
-# Update image URL in dataVolumeTemplates[0].spec.source.http.url
-doc["spec"]["dataVolumeTemplates"][0]["spec"]["source"]["http"]["url"] = image_url
+routes.py
 
-# Update volume name in metadata.name inside dataVolumeTemplates[0]
-doc["spec"]["dataVolumeTemplates"][0]["metadata"]["name"] = volume_name
-
-# Update running status
-doc["spec"]["running"] = status  # This must be a boolean (True/False)
-
-# Optional: Update volume name in template.spec.volumes[0]
-doc["spec"]["template"]["spec"]["volumes"][0]["dataVolume"]["name"] = volume_name
-doc["spec"]["template"]["spec"]["volumes"][0]["name"] = volume_name
-
-
------
-
-for doc in documents:
-    if doc.get("kind") == "VirtualMachine" and doc.get("metadata", {}).get("name") == vm_name:
-        doc["spec"]["dataVolumeTemplates"][0]["spec"]["source"]["http"]["url"] = image_url
-        doc["spec"]["dataVolumeTemplates"][0]["metadata"]["name"] = volume_name
-        doc["spec"]["template"]["spec"]["volumes"][0]["name"] = volume_name
-        doc["spec"]["template"]["spec"]["volumes"][0]["dataVolume"]["name"] = volume_name
-        doc["spec"]["running"] = True if status.lower() == "true" else False
-        updated = True
-        break
-
-
-
-@app.route("/api/vm-repave", methods=["POST"])
-def vm_repave():
-    """
-    VM Repave .
-    ---
-    tags:
-      - VM Operations
-    consumes:
-      - application/json
-    parameters:
-      - in: body
-        name: vm
-        required: true
-        schema:
-          type: object
-          example:
-            vm_name: "wh-labocp-007"
-            namespace: "gkp"
-            volume_name: "wh-labocp-007-rootdisk"
-            image_url: "http://10.14.222.30:8080/rhel-8.10-x86_64-kvm.qcow2"
-            status: "true"            
-    responses:
-      200:
-        description: VM repave triggered successfully
-        examples:
-          application/json: 
-            status: "VM repave updated"
-    """
-    data = request.get_json()
-
-    if not data:
-        return jsonify({"error": "Invalid JSON"}), 400
-
-    required_fields = ["vm_name", "namespace", "volume_name", "image_url", "status"]
-    missing = [f for f in required_fields if f not in data]
-    if missing:
-        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
-
-    vm_name = data["vm_name"]
-    namespace = data["namespace"]
-    volume_name = data["volume_name"]
-    image_url = data["image_url"]
-    status = data["image_url"]
-    
-    filepath = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{vm_name}.yaml"
-
-    try:
-        with open(filepath, "r") as f:
-            documents = list(yaml.safe_load_all(f))
-
-        # Modify the VM document
-        updated = False
-        for doc in documents:
-            if doc.get("kind") == "VirtualMachine" and doc.get("metadata", {}).get("name") == vm_name:
-                doc["spec"]["source"]["http"]["url"] = image_url
-                doc["spec"]["dataVolumeTemplates"]["name"] = volume_name                
-                doc["spec"]["template"]["spec"]["domain"]["volums"]["name"] = volume_name
-                doc["spec"]["dataVolumeTemplates"]["running"] = status
-                updated = True
-                break
-
-        if not updated:
-            return jsonify({"error": f"VirtualMachine '{vm_name}' not found in YAML"}), 404
-
-        # Save back all documents
-        with open(filepath, "w") as f:
-            yaml.safe_dump_all(documents, f, default_flow_style=False)
-
-        # Push updated file to GitLab
-        push_yaml_to_git(filepath, namespace)
-
-    except FileNotFoundError:
-        return jsonify({"error": f"YAML file not found for VM '{vm_name}'"}), 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-    return jsonify({"status": "VM Repave updated", "vm_name": vm_name}), 200
-
-
-
+import os
 import yaml
-from flask import request, jsonify
+from flask import Flask, request, jsonify
+from .utils import render_vm_yaml, save_yaml_to_file, push_yaml_to_git, remove_yaml_from_git
+from flask import Flask, request, jsonify
+from flasgger import Swagger
 
-@app.route("/api/vm-resize", methods=["POST"])
-def vm_resize():
-    data = request.get_json()
+app = Flask(__name__)
+swagger = Swagger(app)
 
-    if not data:
-        return jsonify({"error": "Invalid JSON"}), 400
-
-    required_fields = ["vm_name", "namespace", "cpu", "memory"]
-    missing = [f for f in required_fields if f not in data]
-    if missing:
-        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
-
-    vm_name = data["vm_name"]
-    namespace = data["namespace"]
-    cpu = data["cpu"]
-    memory = data["memory"]
-    
-    filepath = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{vm_name}.yaml"
-
-    try:
-        with open(filepath, "r") as f:
-            documents = list(yaml.safe_load_all(f))
-
-        # Modify the VM document
-        updated = False
-        for doc in documents:
-            if doc.get("kind") == "VirtualMachine" and doc.get("metadata", {}).get("name") == vm_name:
-                doc["spec"]["template"]["spec"]["domain"]["cpu"]["cores"] = cpu
-                doc["spec"]["template"]["spec"]["domain"]["resources"]["requests"]["memory"] = memory
-                updated = True
-                break
-
-        if not updated:
-            return jsonify({"error": f"VirtualMachine '{vm_name}' not found in YAML"}), 404
-
-        # Save back all documents
-        with open(filepath, "w") as f:
-            yaml.safe_dump_all(documents, f, default_flow_style=False)
-
-        # Push updated file to GitLab
-        push_yaml_to_git(filepath, namespace)
-
-    except FileNotFoundError:
-        return jsonify({"error": f"YAML file not found for VM '{vm_name}'"}), 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-    return jsonify({"status": "VM resize updated", "vm_name": vm_name, "cpu": cpu, "memory": memory}), 200
-
-
-
-{
-  "error": "expected a single document in the stream\n  in \"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\wh-labocp-007.yaml\", line 1, column 1\nbut found another document\n  in \"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\wh-labocp-007.yaml\", line 82, column 1"
-}
-
-
-@app.route("/api/vm-resize", methods=["POST"])
-def vm_resize():
+@app.route("/api/vm-request", methods=["POST"])
+def vm_request():
     """
-    VM Resize via GitLab + ArgoCD
+    VM Deployment via GitLab + ArgoCD
     ---
     tags:
       - VM Operations
@@ -185,7 +30,7 @@ def vm_resize():
             namespace: "gkp"
             volume_name: "wh-labocp-007-rootdisk"
             image_url: "http://10.14.222.30:8080/rhel-8.10-x86_64-kvm.qcow2"
-            storage_size: "30Gi"
+            storage_size: "120Gi"
             status: "true"
             cpu: 1
             memory: "4Gi"
@@ -221,19 +66,13 @@ def vm_resize():
         
         filename = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{data['vm_name']}.yaml"
         save_yaml_to_file(yaml_content, filename)
-
-        # Push to GitLab
+        
         push_yaml_to_git(filename,data["namespace"])
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
     return jsonify({"status": "accepted", "details": data}), 200
-
-
-
-import yaml
-from flask import request, jsonify
 
 @app.route("/api/vm-resize", methods=["POST"])
 def vm_resize():
@@ -281,17 +120,25 @@ def vm_resize():
 
     try:
         with open(filepath, "r") as f:
-            vm_yaml = yaml.safe_load(f)
+            documents = list(yaml.safe_load_all(f))
 
-        # Update CPU and memory
-        vm_yaml["spec"]["template"]["spec"]["domain"]["cpu"]["cores"] = cpu
-        vm_yaml["spec"]["template"]["spec"]["domain"]["resources"]["requests"]["memory"] = memory
+        
+        updated = False
+        for doc in documents:
+            if doc.get("kind") == "VirtualMachine" and doc.get("metadata", {}).get("name") == vm_name:
+                doc["spec"]["template"]["spec"]["domain"]["cpu"]["cores"] = cpu
+                doc["spec"]["template"]["spec"]["domain"]["resources"]["requests"]["memory"] = memory
+                updated = True
+                break
 
-        # Save updated YAML
+        if not updated:
+            return jsonify({"error": f"VirtualMachine '{vm_name}' not found in YAML"}), 404
+
+        
         with open(filepath, "w") as f:
-            yaml.safe_dump(vm_yaml, f, default_flow_style=False)
+            yaml.safe_dump_all(documents, f, default_flow_style=False)
 
-        # Push updated file to GitLab
+        
         push_yaml_to_git(filepath, namespace)
 
     except FileNotFoundError:
@@ -300,3 +147,251 @@ def vm_resize():
         return jsonify({"error": str(e)}), 500
 
     return jsonify({"status": "VM resize updated", "vm_name": vm_name, "cpu": cpu, "memory": memory}), 200
+
+
+
+@app.route("/api/vm-repave", methods=["POST"])
+def vm_repave():
+    """
+    VM Repave via GitLab + ArgoCD .
+    ---
+    tags:
+      - VM Operations
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: vm
+        required: true
+        schema:
+          type: object
+          example:
+            vm_name: "wh-labocp-007"
+            namespace: "gkp"
+            volume_name: "wh-labocp-007-rootdisk"
+            image_url: "http://10.14.222.30:8080/rhel-8.10-x86_64-kvm.qcow2"
+            status: "false"            
+    responses:
+      200:
+        description: VM repave triggered successfully
+        examples:
+          application/json: 
+            status: "VM repave updated"
+    """
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    required_fields = ["vm_name", "namespace", "volume_name", "image_url", "status"]
+    missing = [f for f in required_fields if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+    vm_name = data["vm_name"]
+    namespace = data["namespace"]
+    volume_name = data["volume_name"]
+    image_url = data["image_url"]
+    status = data["status"]
+    
+    filepath = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{vm_name}.yaml"
+
+    try:
+        with open(filepath, "r") as f:
+            documents = list(yaml.safe_load_all(f))
+
+        
+        updated = False
+        for doc in documents:
+            if doc.get("kind") == "VirtualMachine" and doc.get("metadata", {}).get("name") == vm_name:
+                doc["spec"]["dataVolumeTemplates"][0]["spec"]["source"]["http"]["url"] = image_url
+                doc["spec"]["dataVolumeTemplates"][0]["metadata"]["name"] = volume_name                 
+                for volume in doc["spec"]["template"]["spec"]["volumes"]:
+                    if "dataVolume" in volume and volume["name"] == "rootdisk":
+                        volume["dataVolume"]["name"] = volume_name  
+                        break                                                
+                doc["spec"]["running"] = status.lower() == "true"
+                updated = True
+                break
+
+        if not updated:
+            return jsonify({"error": f"VirtualMachine '{vm_name}' not found in YAML"}), 404
+
+        
+        with open(filepath, "w") as f:
+            yaml.safe_dump_all(documents, f, default_flow_style=False)
+
+        
+        push_yaml_to_git(filepath, namespace)
+
+    except FileNotFoundError:
+        return jsonify({"error": f"YAML file not found for VM '{vm_name}'"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"status": "VM Repave updated", "vm_name": vm_name}), 200
+
+
+@app.route("/api/vm-delete", methods=["POST"])
+def vm_delete():
+    """
+    Delete VM via GitLab + ArgoCD
+    ---
+    tags:
+      - VM Operations
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: vm
+        required: true
+        schema:
+          type: object
+          example:
+            vm_name: "wh-labocp-007"
+            namespace: "gkp"            
+    responses:
+      200:
+        description: VM deletion triggered successfully
+        examples:
+          application/json: { "status": "VM deletion triggered" }
+    """
+
+    data = request.get_json()
+    if not data or "vm_name" not in data or "namespace" not in data:
+        return jsonify({"error": "Missing vm_name or namespace"}), 400
+
+    try:
+        remove_yaml_from_git(data["vm_name"], data["namespace"])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"status": "deleted", "vm_name": data["vm_name"]}), 200
+
+
+
+app.py
+
+from api.routes import app
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
+
+
+utils.py
+
+import os
+import shutil
+import requests
+import git
+from .templates import VM_YAML_TEMPLATE
+
+GIT_USERNAME = "V849212"
+GIT_PASSWORD = "Digital"
+#GIT_REPO_URL = f"https://{GIT_USERNAME}:{GIT_PASSWORD}@gitlab.lab.jpmchase.net/V849212/vm-auto.git"
+GIT_REPO_URL = f"https://gitlab.lab.jpmchase.net/V849212/vm-auto.git"
+
+
+
+LOCAL_YAML_FOLDER = r"C:\Users\V849212\Documents\vm_api_project\data"
+
+def render_vm_yaml(user_input):
+    return VM_YAML_TEMPLATE.format(
+        vm_name=user_input["vm_name"],
+        namespace=user_input["namespace"],
+        volume_name=user_input["volume_name"],
+        image_url=user_input["image_url"],
+        storage_size=user_input["storage_size"],  
+        status=user_input["status"],      
+        cpu=user_input["cpu"],
+        memory=user_input["memory"], 
+        diskname=user_input["diskname"],      
+        interface=user_input["interface"],
+        ip=user_input["ip"] ,
+        cloud_user=user_input["cloud_user"],
+        cloud_password=user_input["cloud_password"]
+    )
+
+def save_yaml_to_file(content, filename):
+    
+    full_path = os.path.join(LOCAL_YAML_FOLDER, filename)
+    with open(full_path, "w") as f:
+        f.write(content)
+    return full_path
+
+def push_yaml_to_git(yaml_file_path,namespace):
+    import git
+    import os
+    import shutil
+
+    repo_dir = r"C:\Users\V849212\Documents\vm_api_project\repo_clonenew"
+    
+    file_name = os.path.basename(yaml_file_path)
+    
+    if namespace == "gkp" :
+        manifests_dir = "gkp"
+    elif namespace == "gos" :
+        manifests_dir = "gos"
+    else :
+        manifests_dir = "manifests"    
+
+    os.environ['GIT_SSL_NO_VERIFY'] = 'true'
+
+    
+    if not os.path.exists(repo_dir):
+        repo = git.Repo.clone_from(GIT_REPO_URL, repo_dir, branch="main")
+    else:
+        repo = git.Repo(repo_dir)
+        origin = repo.remotes.origin
+        origin.fetch()
+        repo.git.checkout('main')
+        repo.git.reset('--hard', 'origin/main')
+
+    
+    dest_path = os.path.join(repo_dir, manifests_dir, file_name)
+    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+
+    
+    shutil.copyfile(yaml_file_path, dest_path)
+
+    
+    repo.index.add([dest_path])
+    repo.index.commit(f"Automated commit: {file_name}")
+    repo.remote(name="origin").push()
+
+
+def remove_yaml_from_git(vm_name, namespace):
+    import os
+    import shutil
+    import git
+
+    repo_dir = r"C:\Users\V849212\Documents\vm_api_project\repo_clonenew"
+
+    file_name = f"{vm_name}.yaml"
+
+    if namespace == "gkp":
+        manifests_dir = "gkp"
+    elif namespace == "gos":
+        manifests_dir = "gos"
+    else:
+        manifests_dir = "manifests"
+
+    os.environ['GIT_SSL_NO_VERIFY'] = 'true'
+
+    if not os.path.exists(repo_dir):
+        repo = git.Repo.clone_from(GIT_REPO_URL, repo_dir, branch="main")
+    else:
+        repo = git.Repo(repo_dir)
+        origin = repo.remotes.origin
+        origin.fetch()
+        repo.git.checkout('main')
+        repo.git.reset('--hard', 'origin/main')
+
+    dest_path = os.path.join(repo_dir, manifests_dir, file_name)
+
+    if os.path.exists(dest_path):
+        repo.index.remove([dest_path], working_tree=True)
+        repo.index.commit(f"Removed {file_name} from Git repo under {manifests_dir}")
+        repo.remote(name='origin').push()
+    else:
+        raise FileNotFoundError(f"{file_name} not found in repo under {manifests_dir}/")
