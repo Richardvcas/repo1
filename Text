@@ -1,280 +1,103 @@
-🧠 Virtual Machine Lifecycle Automation via Flask API + Argo CD
-👨‍💻 Author: Richard Xavier
-Date: [Insert date]
-Environment: Lab setup (OpenShift without internet access)
+Implemented Use Cases (API Endpoints)
+Each operation is implemented as a standalone API endpoint with end-to-end GitOps automation.
 
-📝 Overview
-As part of the VM provisioning automation initiative, I designed and implemented a Flask-based REST API using Python, integrated with Swagger UI, GitLab, and Argo CD. This setup allows users to trigger infrastructure operations such as VM creation, resizing, repaving, and deletion directly from a browser-based interface.
+🟢 1. Pave – Provision a New VM
+Endpoint: POST /api/vm-request
 
-🧩 Technology Stack
-Flask (Python)
+Accepts VM parameters: name, namespace, CPU, memory, disk size, image URL, cloud user credentials, IP address, and interface.
 
-Swagger UI (flasgger)
+Uses Jinja-style YAML templates to populate VM definition dynamically.
 
-GitLab (YAML versioning)
+Includes cloud-init for bootstrapping (user, password, runcmd entries).
 
-Argo CD (GitOps-based deployment)
+Generates associated:
 
-OpenShift Virtualization (KubeVirt)
+VirtualMachine object
 
-📁 Project Structure
-The API is modular and cleanly structured:
+DataVolume (PVC) with image URL
 
-graphql
-Copy
-Edit
-vm-api-project/
-│
-├── app.py         # Flask app entry point
-├── routes.py      # Main API routes for VM operations
-├── utils.py       # YAML rendering, Git interaction
-├── templates/     # YAML Jinja templates (VM and Job)
-└── data/          # Generated YAMLs before Git push
-🔄 How It Works
-Swagger UI is launched via Flask.
+Secret for cloud-init
 
-The user selects the operation (Pave, Resize, Repave, Delete) and provides inputs via Swagger form.
+Saves the YAML into the local data/ folder.
 
-The input JSON is:
+Pushes the file to the correct subfolder in repo_clonenew/ (e.g., gkp/, gos/).
 
-parsed by the Flask API
+GitLab commit auto-triggers Argo CD sync.
 
-converted into YAML (based on the selected operation)
+VM is created in OpenShift Virtualization with correct resources and cloud-init.
 
-YAML is saved locally and then pushed to a GitLab repository.
+Validation: Confirm VM status via Argo CD panel and OpenShift console.
 
-Argo CD, configured in pull-based sync mode, picks up the new YAML and applies it to OpenShift.
+🟡 2. Resize – Adjust CPU/Memory
+Endpoint: POST /api/vm-resize
 
-For resize operations, a restart Job YAML is also created and synced to Argo CD.
+Input accepts: VM name, namespace, updated CPU and memory values.
 
-✅ Use Cases Implemented
-Use Case	Description
-Pave	First-time provisioning of VM from base image with config and network setup
-Resize	Modify CPU and memory configuration of a running VM
-Repave	Replace VM disk/image with a newer base image while preserving config
-Delete	Remove the VM definition and associated volumes from GitLab and cluster
+Reads and modifies the existing VM YAML.
 
-📷 Screenshots of Swagger UI, GitLab YAML, and Argo CD UI will be attached here
+Generates a Job YAML that:
 
-🔧 Highlights
-Fully automated GitOps workflow using GitLab + Argo CD.
+Executes oc patch to stop the VM
 
-Internal image used in restart jobs due to no internet access in the lab.
+Waits for 15 seconds
 
-Jobs tagged with argocd.argoproj.io/hook: PostSync to trigger VM restart automatically post-resize.
+Executes oc patch to start the VM with updated spec
 
-Error-handling and YAML validation implemented.
+Job is:
 
-Clean modular Python code, making the API extensible.
+Annotated as PostSync hook for Argo CD
 
-📌 Notes
-All YAML templates were built using Python .format() / Jinja-style placeholders.
+Auto-deleted upon success
 
-The service account and image stream are customized for lab environment with no external internet.
+Ensures changes are applied cleanly without manual intervention.
 
-Confluence attachments include:
+Commits both the updated VM YAML and the job YAML to GitLab.
 
-Swagger UI sample input
+Argo CD syncs the changes and executes the Job automatically.
 
-GitLab commit snapshot
+Validation: Check updated resources and Job success logs in OpenShift.
 
-Argo CD UI in syncing state
+🔁 3. Repave – Update VM Image
+Endpoint: POST /api/vm-repave
 
-Final synced YAMLs
+Accepts new image_url, volume name, and VM name.
 
-Sample Flask logs
+Locates and updates:
 
-📸 Attachments (To be Added)
- Swagger UI Screenshot
+DataVolume image URL
 
- Sample JSON Input
+Root disk reference in volumes
 
- Generated YAML
+Useful for:
 
- GitLab YAML commit history
+Rebuilding the VM with a newer OS image
 
- Argo CD status screen
+Replacing a corrupted or misconfigured image
 
- Pod/Job logs
+Reuses the existing VM metadata and structure.
 
-📂 Source Code (Snippets Will Be Attached)
-You'll find these files embedded with explanation:
+GitLab commit triggers Argo CD to redeploy VM with updated image.
 
-app.py
+Optionally combined with resize or additional Job to trigger restart.
 
-routes.py
+Validation: Confirm new image pulled and VM boots correctly.
 
-utils.py
+🗑️ 4. Delete – Remove VM
+Endpoint: POST /api/vm-delete
 
-VM_YAML_TEMPLATE
+Input: VM name and namespace
 
-VM_JOB_YAML_TEMPLATE
+Locates the YAML file in the GitLab repo based on naming convention.
 
-Let me know if you want a downloadable Word version or help formatting this in Confluence's page editor.
+Executes a git rm (cached) to remove the file from staging.
 
+Pushes commit to GitLab.
 
+Argo CD recognizes the deleted manifest and removes the corresponding VM from OpenShift.
 
+Safe and declarative deletion — no manual oc delete needed.
 
+Helps enforce GitOps hygiene and prevents resource drift.
 
-
-
-
-Ask ChatGPT
-You said:
-this ok. little more elaborate i will to make long page
-
-
-ChatGPT said:
-Updated saved memory
-Perfect! Here's a more elaborate version of the Confluence page content — detailed enough to span a full page and suitable for internal documentation or technical sharing.
-
-🧠 Virtual Machine Lifecycle Automation Using Flask API + GitLab + Argo CD
-👨‍💻 Author: Richard Xavier
-Duration: Last 2 Weeks
-Environment: Internal OpenShift Lab (No Internet Access)
-Tools Used: Python (Flask), GitLab, Argo CD, OpenShift Virtualization
-
-📌 Objective
-The primary goal of this project was to automate the lifecycle operations of OpenShift Virtual Machines using a RESTful interface. Users should be able to:
-
-Trigger VM-related actions using a browser
-
-Generate and store YAML definitions in GitLab
-
-Leverage Argo CD to apply the changes in the OpenShift cluster automatically
-
-This approach removes manual YAML handling and enables a GitOps-based VM provisioning and management workflow.
-
-🧩 Tech Stack Breakdown
-Component	Purpose
-Flask	Lightweight Python web framework used to host the API
-Swagger (Flasgger)	Provides a visual interface for users to input VM details
-GitLab	Stores YAMLs under version control (manifests managed per namespace)
-Argo CD	Syncs YAMLs from GitLab to OpenShift using GitOps
-OpenShift Virtualization (KubeVirt)	Platform where the VMs are provisioned and managed
-
-🔧 Project Structure
-The entire solution is built using modular Python files:
-
-graphql
-Copy
-Edit
-vm-api-project/
-├── app.py          # Entry point for Flask
-├── routes.py       # All Flask API route handlers
-├── utils.py        # YAML generation, Git operations
-├── templates/      # YAML templates (for VM and Job)
-└── data/           # Temporarily stores generated YAMLs
-🌐 How It Works (End-to-End Flow)
-Launch Flask App: The API runs locally using Flask with Swagger integrated.
-
-User Input via Swagger: Users interact through Swagger UI to fill in VM details (CPU, Memory, Disk, Image URL, etc.).
-
-JSON ➝ YAML Conversion:
-
-The Python backend converts input JSON into valid Kubernetes YAML (VM definition or Job).
-
-This uses pre-defined templates with placeholders ({vm_name}, {memory}, etc.).
-
-Save YAML to Disk: YAML files are temporarily saved in a local folder (data/).
-
-Push to GitLab: The API automatically pushes the YAML to the appropriate GitLab repo folder (gkp/, gos/, etc.).
-
-Argo CD Auto-Sync:
-
-Argo CD, configured with the Git repo, picks up any YAML changes.
-
-VM gets created or updated accordingly in the OpenShift cluster.
-
-✅ Implemented Use Cases
-Each use case is implemented as a separate API endpoint that follows the above flow:
-
-1. 🟢 Pave (Provision a new VM)
-Generates a complete VM YAML with boot config, disks, cloud-init secret, and network.
-
-Triggered from /api/vm-request.
-
-2. 🟡 Resize
-Accepts CPU and Memory updates.
-
-Modifies existing YAML and generates an additional restart Job YAML.
-
-Job uses a PostSync Argo CD hook to restart the VM after resize.
-
-3. 🔁 Repave
-Replaces the image URL in the existing VM YAML (new OS or base version).
-
-Also updates the root disk reference in volumes and dataVolumeTemplates.
-
-4. 🗑️ Delete
-Deletes the YAML file from GitLab via API and triggers removal in the cluster via Argo CD sync.
-
-🔄 VM Restart (Hook-Based Job YAML)
-A Kubernetes Job is generated with the following characteristics:
-
-Uses openshift/cli image
-
-Contains a simple Bash script:
-
-bash
-Copy
-Edit
-oc patch vm <name> -n <namespace> --type=merge -p '{"spec":{"running":false}}'
-sleep 15
-oc patch vm <name> -n <namespace> --type=merge -p '{"spec":{"running":true}}'
-Annotated with:
-
-yaml
-Copy
-Edit
-argocd.argoproj.io/hook: PostSync
-argocd.argoproj.io/hook-delete-policy: HookSucceeded
-This ensures the Job only runs after Argo CD finishes syncing the updated VM spec.
-
-🖼️ Screenshots (To Be Attached)
- Swagger UI showing input form
-
- GitLab commit with YAML
-
- Argo CD application panel
-
- Job status from OpenShift
-
- VM creation logs
-
-📜 Sample APIs
-Endpoint	Function
-POST /api/vm-request	Create new VM
-POST /api/vm-resize	Resize CPU/Memory
-POST /api/vm-repave	Update image URL
-POST /api/vm-delete	Remove VM YAML
-
-All inputs are provided via Swagger form, and results are automatically pushed to GitLab and synced by Argo CD.
-
-💡 Key Learnings
-Argo CD PostSync hooks help automate reboots without manual intervention.
-
-Restart jobs require service account permissions and image stream access in restricted environments.
-
-Without internet access, internal OpenShift image streams must be used.
-
-📁 Next Steps
-Add role-based access to restrict who can trigger which operations.
-
-Add more advanced post-processing logs or monitoring integration.
-
-Explore using Tekton for job chaining in future.
-
-🧠 Conclusion
-This implementation has greatly simplified VM lifecycle operations. All the tasks that previously required manual YAML edits and oc apply commands can now be done through an easy-to-use Swagger interface backed by GitOps.
-
-This project is a solid foundation for infrastructure automation in air-gapped OpenShift environments.
-
-Let me know if you want this as a Word or Markdown export for copy-paste into Confluence, or need help formatting the screenshots/codes inline in the page.
-
-
-
-
-
-
+Validation: Check GitLab history and Argo CD sync events for VM removal.
 
