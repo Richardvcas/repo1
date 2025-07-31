@@ -1,202 +1,448 @@
-cloud-init formats
-cloud-init can be passed in a number of ways to the guest, you can read more here https://kubevirt.io/user-guide/user_workloads/startup_scripts/#cloud-init 
+routes.py
+
+import os
+import yaml
+from flask import Flask, request, jsonify
+from .utils import render_vm_yaml, save_yaml_to_file, push_yaml_to_git, remove_yaml_from_git, render_vm_job_yaml
+from flask import Flask, request, jsonify
+from flasgger import Swagger
+
+app = Flask(__name__)
+swagger = Swagger(app)
+
+@app.route("/api/vm-request", methods=["POST"])
+def vm_request():
+    """
+    VM Deployment via GitLab + ArgoCD
+    ---
+    tags:
+      - VM Operations
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: vm
+        required: true
+        schema:
+          type: object
+          example:
+            vm_name: "wh-labocp-007"            
+            namespace: "gkp"
+            volume_name: "wh-labocp-007-rootdisk"
+            image_url: "http://10.14.222.30:8080/rhel-8.10-x86_64-kvm.qcow2"
+            storage_size: "120Gi"
+            status: "true"
+            cpu: 1
+            memory: "4Gi"
+            diskname: "appdisk007"
+            interface: "eth0"
+            ip: "10.14.221.137/26"
+            cloud_user: "clouduser"
+            cloud_password: "a23456"
+    responses:
+      200:
+        description: VM deployment triggered successfully
+        examples:
+          application/json: 
+            status: "VM deployment triggered"
+    """
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    required_fields = [
+        "vm_name", "namespace", "volume_name", "image_url",
+        "storage_size", "status", "cpu", "memory", "diskname", "interface", "ip", "cloud_user", "cloud_password"
+    ]
+    missing = [f for f in required_fields if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+    try:
+        
+        yaml_content = render_vm_yaml(data)
+
+        
+        filename = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{data['vm_name']}.yaml"
+        save_yaml_to_file(yaml_content, filename)
+        
+        push_yaml_to_git(filename,data["namespace"])
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"status": "accepted", "details": data}), 200
+
+@app.route("/api/vm-resize", methods=["POST"])
+def vm_resize():
+    """
+    Resize VM resources (CPU/Memory) and update YAML in GitLab via ArgoCD.
+    ---
+    tags:
+      - VM Operations
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: vm
+        required: true
+        schema:
+          type: object
+          example:
+            vm_name: "wh-labocp-007"
+            namespace: "gkp"
+            cpu: 2
+            memory: "8Gi"
+            status: "false"
+    responses:
+      200:
+        description: VM resize triggered successfully
+        examples:
+          application/json: 
+            status: "VM resize updated"
+    """
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    required_fields = ["vm_name", "namespace", "cpu", "memory", "status"]
+    missing = [f for f in required_fields if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+    vm_name = data["vm_name"]
+    namespace = data["namespace"]
+    cpu = data["cpu"]
+    memory = data["memory"]
+    status = data["status"]
+    
+    filepath = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{vm_name}.yaml"
+
+    try:
+        with open(filepath, "r") as f:
+            documents = list(yaml.safe_load_all(f))
+
+        
+        updated = False
+        for doc in documents:
+            if doc.get("kind") == "VirtualMachine" and doc.get("metadata", {}).get("name") == vm_name:
+                doc["spec"]["template"]["spec"]["domain"]["cpu"]["cores"] = cpu
+                doc["spec"]["template"]["spec"]["domain"]["resources"]["requests"]["memory"] = memory
+                doc["spec"]["running"] = status.lower() == "true"
+                updated = True
+                break
+
+        if not updated:
+            return jsonify({"error": f"VirtualMachine '{vm_name}' not found in YAML"}), 404
+
+        
+        with open(filepath, "w") as f:
+            yaml.safe_dump_all(documents, f, default_flow_style=False)
+
+        
+        push_yaml_to_git(filepath, namespace)
+
+    except FileNotFoundError:
+        return jsonify({"error": f"YAML file not found for VM '{vm_name}'"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+    try:
+        print("Before Render Testing")
+        yaml_content = render_vm_job_yaml(data)
+
+        print("Testing")
+        filename = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{data['vm_job_name']}.yaml"
+        save_yaml_to_file(yaml_content, filename)
+        
+        push_yaml_to_git(filename,data["namespace"])
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+    return jsonify({"status": "VM resize updated", "vm_name": vm_name, "cpu": cpu, "memory": memory}), 200
 
 
 
-cloud-init as a secret
-Create your cloud-init file, most of the data here should be unique to each guest VM. Please note some of the stuff here under runcmd will go to image so that it will be cleaner.
+
+
+@app.route("/api/vm-repave", methods=["POST"])
+def vm_repave():
+    """
+    VM Repave via GitLab + ArgoCD .
+    ---
+    tags:
+      - VM Operations
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: vm
+        required: true
+        schema:
+          type: object
+          example:
+            vm_name: "wh-labocp-007"
+            namespace: "gkp"
+            volume_name: "wh-labocp-007-rootdisk"
+            image_url: "http://10.14.222.30:8080/rhel-8.10-x86_64-kvm.qcow2"
+            status: "false"            
+    responses:
+      200:
+        description: VM repave triggered successfully
+        examples:
+          application/json: 
+            status: "VM repave updated"
+    """
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    required_fields = ["vm_name", "namespace", "volume_name", "image_url", "status"]
+    missing = [f for f in required_fields if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+    vm_name = data["vm_name"]
+    namespace = data["namespace"]
+    volume_name = data["volume_name"]
+    image_url = data["image_url"]
+    status = data["status"]
+    
+    filepath = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{vm_name}.yaml"
+
+    try:
+        with open(filepath, "r") as f:
+            documents = list(yaml.safe_load_all(f))
+
+        
+        updated = False
+        for doc in documents:
+            if doc.get("kind") == "VirtualMachine" and doc.get("metadata", {}).get("name") == vm_name:
+                doc["spec"]["dataVolumeTemplates"][0]["spec"]["source"]["http"]["url"] = image_url
+                doc["spec"]["dataVolumeTemplates"][0]["metadata"]["name"] = volume_name                 
+                for volume in doc["spec"]["template"]["spec"]["volumes"]:
+                    if "dataVolume" in volume and volume["name"] == "rootdisk":
+                        volume["dataVolume"]["name"] = volume_name  
+                        break                                                
+                doc["spec"]["running"] = status.lower() == "true"
+                updated = True
+                break
+
+        if not updated:
+            return jsonify({"error": f"VirtualMachine '{vm_name}' not found in YAML"}), 404
+
+        
+        with open(filepath, "w") as f:
+            yaml.safe_dump_all(documents, f, default_flow_style=False)
+
+        
+        push_yaml_to_git(filepath, namespace)
+
+    except FileNotFoundError:
+        return jsonify({"error": f"YAML file not found for VM '{vm_name}'"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"status": "VM Repave updated", "vm_name": vm_name}), 200
+
+
+@app.route("/api/vm-delete", methods=["POST"])
+def vm_delete():
+    """
+    Delete VM via GitLab + ArgoCD
+    ---
+    tags:
+      - VM Operations
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: vm
+        required: true
+        schema:
+          type: object
+          example:
+            vm_name: "wh-labocp-007"
+            namespace: "gkp"            
+    responses:
+      200:
+        description: VM deletion triggered successfully
+        examples:
+          application/json: { "status": "VM deletion triggered" }
+    """
+
+    data = request.get_json()
+    if not data or "vm_name" not in data or "namespace" not in data:
+        return jsonify({"error": "Missing vm_name or namespace"}), 400
+
+    try:
+        remove_yaml_from_git(data["vm_name"], data["namespace"])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"status": "deleted", "vm_name": data["vm_name"]}), 200
+----
+utils.py
+
+import os
+import shutil
+import requests
+import git
+from .templates import VM_YAML_TEMPLATE, VM_JOB_YAML_TEMPLATE
+
+GIT_USERNAME = "V849212"
+GIT_PASSWORD = "Digital"
+#GIT_REPO_URL = f"https://{GIT_USERNAME}:{GIT_PASSWORD}@gitlab.lab.jpmchase.net/V849212/vm-auto.git"
+GIT_REPO_URL = f"https://gitlab.lab.jpmchase.net/V849212/vm-auto.git"
 
 
 
-cat wh-labocp-002-cloud-init.yaml
-#cloud-config
-runcmd:
-  - 'set -x'
-  - 'sed -i "/# source INSTALL_CLASS/i generate_fbenv" /usr/local/bin/fb-init.sh' 
-  - 'cat /etc/INSTALL_CLASS.new >> /etc/INSTALL_CLASS'
-  - '[[ `/usr/bin/cloud-id` == "nocloud" ]] && [[ -f "/usr/local/bin/fb-init.sh" ]] && /usr/local/bin/fb-init.sh'
-  - 'jpmc-dnf-config configure --get-content-hostname > /tmp/jpmc-dnf-config-original-content-hostname'
-  # lab only
-  # ---------
-  - 'jpmc-dnf-config configure --set-content-hostname=repomirror-lab.jpmchase.net'
-  # set lab DNF mirrorlist hostname aliases
-  - "for host in `curl https://repomirror-lab.jpmchase.net/pulp/content/dnf/sources/lrh9/baseos-x86_64.mirrorlist | awk -F/ '{print $3}'`; do echo 10.240.47.188 $host >> /etc/hosts;done"
-  # reload dnsmasq to pick up the new /etc/hosts entries
-  - 'pgrep dnsmasq && kill -HUP $(pgrep dnsmasq)'
-  # everything else
-  - 'yum install -y sudo'
-# allow password auth
-ssh_pwauth: true
-users:
-  - name: root
-    # mkpasswd -m sha-512 --rounds=6
-    # m-----1
-    hashed_passwd: $6$rounds=1000$DiGeA4uGWXSuaEz9$KyunUR3wwSwIarSxHk6MXmgpXUVZIknrsyCPYnHrZMg2R9PCxr0XYxqi.Ig6IUZXORupSs2hp46FhJOb2bnjl1
-  - name: wilmauser
-    gecos: Wilma User
-    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
-    ssh-authorized-keys:
-      - <<< YOUR SSH KEY HERE >>>
-write_files:
-  - path: /etc/INSTALL_CLASS.new
-    content: |
-      KSfbuser="root"
-      KSfbhostname="wh-labocp-002.wh2.lab.jpmchase.net"
-      KSfbfqdn="true"
-      KSfbip="110.14.221.132"
-      KSfbnetmask="255.255.255.192"
-      KSfbgateway="10.14.221.129"
-      KSfbdnsns="10.240.47.3 10.240.41.3"
-      KSfbdnssearch="wh2.lab.jpmchase.net"
-      KSlob="GTI"
-      KSregion="Brooklyn"
-      KSsite="lab1"
-      KSnwzone="lab"
-      timezone="UTC"
-      supportTeam="GDEALINUX"
-      KSicpenv="prod"
-      KSenv="dev"
-      KSautomation="icpw"
-      KSgredl="00057"
-      supportTeam="GSO SRVR UNIX"
-      icp_boot_config="false"
-      icp_boot_config_icp_puppet="true"
-      icp_boot_config_icp_puppet_build_script="puppet_run.rb"
-      icp_boot_config_icp_evolven="true"
-      icp_boot_config_icp_powerbroker="true"
-      icp_boot_config_icp_tivoli_itm6="true"
-      icp_boot_config_icp_aim="true"
-      icp_boot_config_icp_fluentd="true"
-      KScohesity="auto"
-      icp_boot_config_icp_crowdstrike="true"
-      icp_boot_config_icp_cida="true"
-      icp_boot_config_icp_cida_node_type="standard"
-      icp_boot_config_icp_cida_template="ucm_auth_security_cida"
-      icp_boot_config_icp_cida_addomain="exchadlab.gielab.jpmchase.net"
-      epv_require_onboarding="false"
-      epv_repave="true"
-      epv_accountType="Shared Interactive"
-      epv_platform="UnixStandalone - Sophia - Root"
-      epv_accountName="root"
-      epv_region="Global"
-      epv_subRegion="Global"
-      epv_networkLocation="LAN"
-      epv_neimId="G024162"
-      epv_locationId="00057"
-      epv_accessGroupName=""
-      sealId="28954"
-      icp_boot_config_remove_root_pub_keys="true"
-hostname: wh-labocp-002
-fqdn: wh-labocp-002.wh2.lab.jpmchase.net
-manage_etc_hosts: true
+LOCAL_YAML_FOLDER = r"C:\Users\V849212\Documents\vm_api_project\data"
+
+def render_vm_yaml(user_input):
+    return VM_YAML_TEMPLATE.format(
+        vm_name=user_input["vm_name"],
+        namespace=user_input["namespace"],
+        volume_name=user_input["volume_name"],
+        image_url=user_input["image_url"],
+        storage_size=user_input["storage_size"],  
+        status=user_input["status"],      
+        cpu=user_input["cpu"],
+        memory=user_input["memory"], 
+        diskname=user_input["diskname"],      
+        interface=user_input["interface"],
+        ip=user_input["ip"] ,
+        cloud_user=user_input["cloud_user"],
+        cloud_password=user_input["cloud_password"]
+    )
+
+def render_vm_job_yaml(user_input):
+    print("Calling")
+    return VM_JOB_YAML_TEMPLATE.format(
+        vm_name=user_input["vm_name"],
+        namespace=user_input["namespace"],        
+    )
+
+def save_yaml_to_file(content, filename):
+    
+    full_path = os.path.join(LOCAL_YAML_FOLDER, filename)
+    with open(full_path, "w") as f:
+        f.write(content)
+    return full_path
+
+def push_yaml_to_git(yaml_file_path,namespace):
+    import git
+    import os
+    import shutil
+
+    repo_dir = r"C:\Users\V849212\Documents\vm_api_project\repo_clonenew"
+    
+    file_name = os.path.basename(yaml_file_path)
+    
+    if namespace == "gkp" :
+        manifests_dir = "gkp"
+    elif namespace == "gos" :
+        manifests_dir = "gos"
+    else :
+        manifests_dir = "manifests"    
+
+    os.environ['GIT_SSL_NO_VERIFY'] = 'true'
+
+    
+    if not os.path.exists(repo_dir):
+        repo = git.Repo.clone_from(GIT_REPO_URL, repo_dir, branch="main")
+    else:
+        repo = git.Repo(repo_dir)
+        origin = repo.remotes.origin
+        origin.fetch()
+        repo.git.checkout('main')
+        repo.git.reset('--hard', 'origin/main')
+
+    
+    dest_path = os.path.join(repo_dir, manifests_dir, file_name)
+    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+
+    
+    shutil.copyfile(yaml_file_path, dest_path)
+
+    
+    repo.index.add([dest_path])
+    repo.index.commit(f"Automated commit: {file_name}")
+    repo.remote(name="origin").push()
 
 
+def remove_yaml_from_git(vm_name, namespace):
+    import os
+    import shutil
+    import git
 
-Create secret using above userdata
+    repo_dir = r"C:\Users\V849212\Documents\vm_api_project\repo_clonenew"
 
+    file_name = f"{vm_name}.yaml"
 
+    if namespace == "gkp":
+        manifests_dir = "gkp"
+    elif namespace == "gos":
+        manifests_dir = "gos"
+    else:
+        manifests_dir = "manifests"
 
-oc create secret generic wh-labocp-002-cloud-init --from-file=userdata=wh-labocp-002-cloud-init.yaml -n linuxeng
+    os.environ['GIT_SSL_NO_VERIFY'] = 'true'
 
+    if not os.path.exists(repo_dir):
+        repo = git.Repo.clone_from(GIT_REPO_URL, repo_dir, branch="main")
+    else:
+        repo = git.Repo(repo_dir)
+        origin = repo.remotes.origin
+        origin.fetch()
+        repo.git.checkout('main')
+        repo.git.reset('--hard', 'origin/main')
 
+    dest_path = os.path.join(repo_dir, manifests_dir, file_name)
 
+    if os.path.exists(dest_path):
+        repo.index.remove([dest_path], working_tree=True)
+        repo.index.commit(f"Removed {file_name} from Git repo under {manifests_dir}")
+        repo.remote(name='origin').push()
+    else:
+        raise FileNotFoundError(f"{file_name} not found in repo under {manifests_dir}/")
 
-Apply vm definition , make sure to update Network section specific to Guest VM
+---
 
+VM_JOB_YAML_TEMPLATE = """\
 
-
-Full Example
-
-
-apiVersion: kubevirt.io/v1
-kind: VirtualMachine
+apiVersion: batch/v1
+kind: Job
 metadata:
-  labels:
-    kubevirt.io/vm: wh-labocp-002
-  name: wh-labocp-002
+  name: restart-{{ vm_name }}
+  namespace: {{ namespace }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
 spec:
-  dataVolumeTemplates:
-  - metadata:
-      name: vm-fred3-dv1
-    spec:
-      storage:
-        resources:
-          requests:
-            storage: 110Gi
-        # storageClassName: ocs-storagecluster-ceph-rbd
-        storageClassName: ocs-storagecluster-ceph-rbd-virtualization
-      source:
-        http:
-          url: http://fred11420.gielab.jpmchase.net/images/img_ovlt_rhel_9_9.6.1_2025-07-09-100051.qcow2
-            #registry:
-            #url: docker://fred31420.gielab.jpmchase.net:8443/jpmc/ovlt_rhel_9:9.6.1_2025-07-09-100051
-            #secretRef: fred31420-data-source-secret
-            #certConfigMap: fred31420-tls-certs
-    status: {}
-  running: true
   template:
-    metadata:
-      labels:
-        kubevirt.io/vm: wh-labocp-002
     spec:
-      domain:
-        firmware:
-          bootloader:
-            efi:
-              secureBoot: false
-        devices:
-          interfaces:
-            - name: nic-gray-wh-labocp-002
-              bridge: {}
-          disks:
-          - disk:
-              bus: virtio
-            name: vm-fred3-dv1
-          - disk:
-              bus: virtio
-            name: cloudinitdisk
-        machine:
-          type: ""
-        cpu:
-          cores: 2
-        resources:
-          requests:
-            memory: 8Gi
-      terminationGracePeriodSeconds: 180
-      networks:
-        - name: nic-gray-wh-labocp-002
-          multus:
-            networkName: default/vlan3702
-      volumes:
-      - dataVolume:
-          name: vm-fred3-dv1
-        name: vm-fred3-dv1
-      - name: cloudinitdisk
-        cloudInitNoCloud:
-          secretRef:
-            name: wh-labocp-002-cloud-init
-          networkData: |
-            version: 2
-            ethernets:
-              eth0:
-                dhcp4: false
-                addresses:
-                  - 10.14.221.132/26
-                gateway4: 10.14.221.129
-                nameservers:
-                  addresses:
-                    - 10.240.47.3
-                    - 10.240.41.3
+      serviceAccountName: vm-automation-sa
+      containers:
+        - name: restart-vm
+          image: quay.io/openshift/origin-cli:4.12
+          command:
+            - /bin/bash
+            - -c
+            - |
+              echo "Stopping VM..."
+              oc patch vm {{ vm_name }} -n {{ namespace }} --type=merge -p '{"spec":{"running":false}}'
+              sleep 15
+              echo "Starting VM..."
+              oc patch vm {{ vm_name }} -n {{ namespace }} --type=merge -p '{"spec":{"running":true}}'
+      restartPolicy: Never
 
+      
 
-Once VM is up, you should be able to ssh and run ansible playbook to configure agents.
+"""
 
-Create local playbook and run (only for LAB), 
-
-From lab:
-
-Note: remote exec - currently puppet and sophia are working, crowdstrike requires proxy access
-
-
-
-ssh -t -o StrictHostKeyChecking=no root@wh-labocp-002.wh2.lab.jpmchase.net -i ~/.ssh/kvm_rsa 'ansible-playbook /var/tmp/icp_boot_config/icp_boot_config.yml --connection=local'
