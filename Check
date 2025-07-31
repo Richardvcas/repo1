@@ -1,440 +1,95 @@
-Thanks for the detailed explanation! Since you're new to this GitOps + OpenShift VM environment, let me guide you step-by-step with a clean, production-ready automation design for this use case.
-
-
----
-
-🎯 Your Use Case Summary
-
-✅ You already deployed VMs using YAML + GitLab + ArgoCD.
-
-✅ Now, you want to change CPU dynamically via API (Flask/Python).
-
-✅ That API will update the YAML and push to GitLab.
-
-✅ ArgoCD syncs the YAML.
-
-❗ But VM restart is needed to apply new CPU changes.
-
-🚫 No manual restart → everything should be fully automated.
-
-
-
----
-
-✅ Final Goal: Full Flow (No Manual Restart)
-
-User → API → GitLab → ArgoCD → Auto-Restart VM → New CPU takes effect
-
-
----
-
-🔁 Recommended & Reliable Automation Approach
-
-✅ Use a PostSync Job in YAML (with oc/kubectl) to restart the VM
-
-This is the best practice in your case because:
-
-Benefit	Why it matters
-
-✅ One commit	Resize + restart happen together
-✅ Fully automated	No manual step or second commit needed
-✅ GitOps-friendly	Everything is defined in YAML and version-controlled
-✅ Works via API	Your Flask/Python API can handle it
-
-
-
----
-
-📦 Recommended Setup Overview
-
-1. User sends API request
-
-Example:
-
-{
-  "vm_name": "myvm",
-  "cpu": 4,
-  "memory": "8Gi",
-  "namespace": "gkp"
-}
-
-2. Your API will:
-
-Update the VM YAML (cpu, memory)
-
-Add a Job YAML to restart the VM (running: false → true)
-
-Push both to GitLab → ArgoCD syncs
-
-
-
----
-
-🛠️ Implementation Guide
-
-
----
-
-✅ Step 1: Update VM YAML in Python
-
-Your API should edit this part in the YAML:
-
-spec:
-  template:
-    spec:
-      domain:
-        cpu:
-          cores: 4     # <== updated from JSON
-        resources:
-          requests:
-            memory: 8Gi   # <== updated from JSON
-
-
----
-
-✅ Step 2: Add Job YAML to Restart the VM Automatically
-
-Your Python code should generate a YAML like this (restart-vm-job.yaml):
-
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: restart-{{ vm_name }}
-  namespace: {{ namespace }}
-  annotations:
-    argocd.argoproj.io/hook: PostSync
-    argocd.argoproj.io/hook-delete-policy: HookSucceeded
-spec:
-  template:
-    spec:
-      serviceAccountName: vm-automation-sa
-      containers:
-        - name: restart-vm
-          image: quay.io/openshift/origin-cli:4.12
-          command:
-            - /bin/bash
-            - -c
-            - |
-              echo "Stopping VM..."
-              oc patch vm {{ vm_name }} -n {{ namespace }} --type=merge -p '{"spec":{"running":false}}'
-              sleep 15
-              echo "Starting VM..."
-              oc patch vm {{ vm_name }} -n {{ namespace }} --type=merge -p '{"spec":{"running":true}}'
-      restartPolicy: Never
-
-> Use your existing Python template engine to fill {{ vm_name }} and {{ namespace }}.
-
-
-
-
----
-
-✅ Step 3: Add a ServiceAccount + RoleBinding (once per namespace)
-
-In the same namespace, apply:
-
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: vm-automation-sa
-  namespace: gkp
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: vm-automation-binding
-  namespace: gkp
-subjects:
-  - kind: ServiceAccount
-    name: vm-automation-sa
-    namespace: gkp
-roleRef:
-  kind: ClusterRole
-  name: kubevirt.io:edit
-  apiGroup: rbac.authorization.k8s.io
-
-> This allows the Job to control the VM in the namespace securely.
-
-
-
-
----
-
-✅ Step 4: Push Both YAMLs to GitLab from Python
-
-In your Python API logic:
-
-1. Update the VM YAML
-
-
-2. Create a new Job YAML
-
-
-3. Save both to your local repo folder
-
-
-4. Use GitPython to commit and push
-
-
-
-Example:
-
-repo.index.add([vm_yaml_path, job_yaml_path])
-repo.index.commit("Resize VM and trigger restart via Job")
-repo.remote().push()
-
-
----
-
-✅ Step 5: ArgoCD Syncs
-
-1. ArgoCD picks up the changes.
-
-
-2. Applies the new VM spec (CPU updated, still running).
-
-
-3. Then runs the PostSync Job → stops VM, waits, starts again.
-
-
-4. ✅ CPU change is now applied live.
-
-
-
-
----
-
-✅ Summary (What You Achieve)
-
-Step	Outcome
-
-API call	User triggers resize with one request
-YAML update	CPU/memory updated + restart job created
-GitLab push	Everything version-controlled
-ArgoCD sync	VM updated + restart happens
-Result	Fully automated CPU update with restart ✔️
-
-
-
----
-
-Would you like:
-
-Python code to generate this Job YAML?
-
-A complete YAML folder zip for one sample VM?
-
-
-Just let me know!
-
-
-
-
-apiVersion: v1
-kind: Secret
-metadata:
-  name: wh-labocp-002-cloud-init
-  namespace: linuxeng
-type: Opaque
-stringData:
-  userdata: |
-    #cloud-config
-    runcmd:
-      - 'set -x'
-      - 'sed -i "/# source INSTALL_CLASS/i generate_fbenv" /usr/local/bin/fb-init.sh'
-      - 'cat /etc/INSTALL_CLASS.new >> /etc/INSTALL_CLASS'
-      - '[[ `/usr/bin/cloud-id` == "nocloud" ]] && [[ -f "/usr/local/bin/fb-init.sh" ]] && /usr/local/bin/fb-init.sh'
-      - 'jpmc-dnf-config configure --get-content-hostname > /tmp/jpmc-dnf-config-original-content-hostname'
-      - 'jpmc-dnf-config configure --set-content-hostname=repomirror-lab.jpmchase.net'
-      - "for host in `curl https://repomirror-lab.jpmchase.net/pulp/content/dnf/sources/lrh9/baseos-x86_64.mirrorlist | awk -F/ '{print $3}'`; do echo 10.240.47.188 $host >> /etc/hosts;done"
-      - 'pgrep dnsmasq && kill -HUP $(pgrep dnsmasq)'
-      - 'yum install -y sudo'
-    ssh_pwauth: true
-    users:
-      - name: root
-        passwd: Welcome1Welcome1
-      - name: arul
-        gecos: arul
-        sudo: ["ALL=(ALL) NOPASSWD:ALL"]
-        ssh-authorized-keys:
-          - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDIaE9KCal1fjdL/BdxIz191EnF1V7fnM+wv5G5ogSPZnWR3d3ksbMPq2CW2S0C9KouH/60nImIPx3IXofDiF9lBvFxJ5vmpaLT0ssciQXP+vSH6kSNbCcd6WQLSA5cKbQ2sGQCXC8lfPJpSO8CoXYvBtmj2t0uRMTYfKf4JYM8Td7VzPfQBNHGo7sUQ1TWn8TL+DJNj8WtyEVQDD8tS72Qh6DET6WIxCJHK2fjsBonsQkKwq6RcoxZLDLoPH5czvwbDB2lDpV4xjDRjc52f9yOxKrZewX2uEOs/Ouu4agf+fWO+KanF2KIMWCP2+k5Qh52gMMV1u07I0LcYwFYpOWUgXR5GYgfulIEt7YubM+JYgqn46du4wB5x/r/n1tmeliE8MPa2pD1dZpJMAi2nBGLIMVyFgleezBwpheaxIVEu0gXkVt9TbHd5AM9c0NZEtZY/2FzZ5mYBcatjITuhBzYOUZuckjOJweWO7gtCJ830ncDNF2cgk7LIMQaEEJg/Ss= arul@GIEGTIVL07646
-    write_files:
-      - path: /etc/INSTALL_CLASS.new
-        content: |
-          KSfbuser="root"
-          KSfbhostname="wh-labocp-009.wh2.lab.jpmchase.net"
-          KSfbfqdn="true"
-          KSfbip="10.14.221.139"
-          KSfbnetmask="255.255.255.192"
-          KSfbgateway="10.14.221.129"
-          KSfbdnsns="10.240.47.3 10.240.41.3"
-          KSfbdnssearch="wh2.lab.jpmchase.net"
-          KSlob="GTI"
-          KSregion="Brooklyn"
-          KSsite="lab1"
-          KSnwzone="lab"
-          timezone="UTC"
-          supportTeam="GDEALINUX"
-          KSicpenv="prod"
-          KSenv="dev"
-          KSautomation="icpw"
-          KSgredl="00057"
-          supportTeam="GSO SRVR UNIX"
-          icp_boot_config="false"
-          icp_boot_config_icp_puppet="true"
-          icp_boot_config_icp_puppet_build_script="puppet_run.rb"
-          icp_boot_config_icp_evolven="true"
-          icp_boot_config_icp_powerbroker="true"
-          icp_boot_config_icp_tivoli_itm6="true"
-          icp_boot_config_icp_aim="true"
-          icp_boot_config_icp_fluentd="true"
-          KScohesity="auto"
-          icp_boot_config_icp_crowdstrike="true"
-          icp_boot_config_icp_cida="true"
-          icp_boot_config_icp_cida_node_type="standard"
-          icp_boot_config_icp_cida_template="ucm_auth_security_cida"
-          icp_boot_config_icp_cida_addomain="exchadlab.gielab.jpmchase.net"
-          epv_require_onboarding="false"
-          epv_repave="true"
-          epv_accountType="Shared Interactive"
-          epv_platform="UnixStandalone - Sophia - Root"
-          epv_accountName="root"
-          epv_region="Global"
-          epv_subRegion="Global"
-          epv_networkLocation="LAN"
-          epv_neimId="G024162"
-          epv_locationId="00057"
-          epv_accessGroupName=""
-          sealId="28954"
-          icp_boot_config_remove_root_pub_keys="true"
-    hostname: wh-labocp-009
-    fqdn: wh-labocp-009.wh2.lab.
-
-
-
-
-jpmchase.net
-
-
-
-Excellent follow-up. Let’s break down why the ServiceAccount in Step 3 is important, and whether it is strictly required.
-
-
----
-
-✅ Why You Need a ServiceAccount in the Job
-
-When you run a Job in Kubernetes (including OpenShift), it runs in a Pod, and that Pod needs permissions to perform actions like:
-
-> oc patch vm my-vm -n gkp --type=merge -p '{"spec":{"running":false}}'
-
-
-
-This is a KubeVirt action (stop/start VM), and by default, normal Pods don’t have permission to perform it.
-
-
----
-
-🔒 Default Behavior (Without ServiceAccount)
-
-A Job will use the default ServiceAccount of the namespace.
-
-That default account does NOT have permission to manage VMs (i.e., no patch on VirtualMachine kind).
-
-So the restart command in your Job will fail with a permissions error like:
-
-
-Error from server (Forbidden): virtualmachines.kubevirt.io "my-vm" is forbidden: User "system:serviceaccount:gkp:default" cannot patch resource
-
-
----
-
-✅ Solution: Create and Bind a Custom ServiceAccount
-
-1. Create a named ServiceAccount:
-
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: vm-automation-sa
-  namespace: gkp
-
-2. Bind that ServiceAccount to required permissions (RoleBinding):
-
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: vm-automation-binding
-  namespace: gkp
-subjects:
-  - kind: ServiceAccount
-    name: vm-automation-sa
-    namespace: gkp
-roleRef:
-  kind: ClusterRole
-  name: kubevirt.io:edit  # this includes patching VMs
-  apiGroup: rbac.authorization.k8s.io
-
-> kubevirt.io:edit is a built-in ClusterRole that gives full control over VMs in that namespace.
-
-
-
-
----
-
-3. Reference that SA in your Job YAML
-
-spec:
-  template:
-    spec:
-      serviceAccountName: vm-automation-sa
-
-
----
-
-✅ What Happens Now
-
-The Job’s Pod runs using vm-automation-sa.
-
-That SA has permission to patch the VM (because of the RoleBinding).
-
-Restart works ✅
-
-Everything is secure and scoped only to that namespace ✅
-
-
-
----
-
-🔒 Without This Setup:
-
-The Job will run
-
-But the oc patch will fail with “forbidden” error
-
-No restart → CPU changes won’t take effect
-
-
-
----
-
-🧠 Summary
-
-Question	Answer
-
-Is the ServiceAccount required?	✅ Yes, if you want to restart the VM from a Job securely.
-Why is it needed?	To give the Job permission to patch (stop/start) the VM
-How is it done?	Create ServiceAccount + RoleBinding to kubevirt.io:edit role
-
-
-
----
-
-Let me know if you want:
-
-A YAML bundle with this SA and RoleBinding ready to apply
-
-Python code to generate or check if the SA already exists before applying it automatically
-
-
-    manage_etc_hosts: true
+import os
+import yaml
+from flask import Flask, request, jsonify
+from .utils import render_vm_yaml, save_yaml_to_file, push_yaml_to_git, remove_yaml_from_git, render_vm_job_yaml
+from flasgger import Swagger
+
+app = Flask(__name__)
+swagger = Swagger(app)
+
+@app.route("/api/vm-resize", methods=["POST"])
+def vm_resize():
+    """
+    Resize VM resources (CPU/Memory) and also generate a restart Job YAML and push both to GitLab via ArgoCD.
+    ---
+    tags:
+      - VM Operations
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: vm
+        required: true
+        schema:
+          type: object
+          example:
+            vm_name: "wh-labocp-007"
+            namespace: "gkp"
+            cpu: 2
+            memory: "8Gi"
+            status: "false"
+    responses:
+      200:
+        description: VM resize and restart job triggered successfully
+        examples:
+          application/json: 
+            status: "VM resize and restart job triggered"
+    """
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    required_fields = ["vm_name", "namespace", "cpu", "memory", "status"]
+    missing = [f for f in required_fields if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+    vm_name = data["vm_name"]
+    namespace = data["namespace"]
+    cpu = data["cpu"]
+    memory = data["memory"]
+    status = data["status"]
+
+    filepath = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{vm_name}.yaml"
+
+    try:
+        with open(filepath, "r") as f:
+            documents = list(yaml.safe_load_all(f))
+
+        updated = False
+        for doc in documents:
+            if doc.get("kind") == "VirtualMachine" and doc.get("metadata", {}).get("name") == vm_name:
+                doc["spec"]["template"]["spec"]["domain"]["cpu"]["cores"] = cpu
+                doc["spec"]["template"]["spec"]["domain"]["resources"]["requests"]["memory"] = memory
+                doc["spec"]["running"] = status.lower() == "true"
+                updated = True
+                break
+
+        if not updated:
+            return jsonify({"error": f"VirtualMachine '{vm_name}' not found in YAML"}), 404
+
+        with open(filepath, "w") as f:
+            yaml.safe_dump_all(documents, f, default_flow_style=False)
+
+        push_yaml_to_git(filepath, namespace)
+
+        # Now generate and push the restart Job YAML
+        yaml_content = render_vm_job_yaml(data)
+        job_filename = f"{vm_name}-restart.yaml"
+        job_filepath = os.path.join("C:\\Users\\V849212\\Documents\\vm_api_project\\data", job_filename)
+        save_yaml_to_file(yaml_content, job_filepath)
+        push_yaml_to_git(job_filepath, namespace)
+
+        return jsonify({
+            "status": "VM resize and restart job triggered",
+            "vm_name": vm_name,
+            "cpu": cpu,
+            "memory": memory,
+            "restart_job": job_filename
+        }), 200
+
+    except FileNotFoundError:
+        return jsonify({"error": f"YAML file not found for VM '{vm_name}'"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
