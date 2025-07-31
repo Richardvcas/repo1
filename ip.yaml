@@ -1,1 +1,222 @@
+Lets discuss the network requirements that’s outstanding for Open Shift EC1.
+ 
 
+Sure Abhi. I know we have already deployed this template, however I was asking Ali to validate the configuration. If you believe we are good with configuration, we can skip it.
+
+ 
+
+Do we have vlan networks configured for the tenant workload as well?
+
+ 
+
+Thanks,
+
+Sujana
+
+ 
+Hi Sujana,
+
+We should have a call .. I there some confusion I think .. We already have Racks with the Tors templates deployed …
+
+Abhi
+
+ 
+
+ 
+
+@Zaringhalam, Ali,
+
+ 
+
+Can we validate below OCP template has been applied on the racks built for Open Shift?
+
+ 
+
+@Blanco, Juan A,
+
+ 
+
+Let’s procure a new /26 RFC subnet from NetID in this fabric and get the VLAN configured on these racks by NPL.
+
+ 
+
+-Sujana
+
+ 
+
+
+ 
+
+We have defined an OCP template (this will not be the final one) 
+
+
+
+ 
+
+Juan,
+
+ 
+
+These are not traditional VCF racks and are built for Open Shift deployment in an isolated way.
+
+ 
+
+@Alavalapati, Abhimanyu V,
+
+ 
+
+Are there any specific requirements on how these VLAN backed networks(RFCs/RNAs?) should be configured on the rack by NPL?
+
+ 
+
+Thanks,
+
+Sujana
+
+ 
+
+
+ 
+
+Hi Rajesh, Ravi
+
+In NA-NE-CDC2-IT-ROOM-1-FABRIC-3 We only have subnets  /26 RNA available.
+
+They are already configured in TORs switches (for example D514583-F03LF121, D514583-F03LF243)
+
+ 
+
+If you need RFCs or different vcf we will need to request new subnets and ask NPL to configure them.
+
+Please confirm so I can start the request process
+
+ 
+
+ 
+
+Regards, Juan
+
+ 
+
+ 
+
+ 
+
+Thanks Rajesh and Ravi.
+
+ 
+
+@Blanco, Juan A,
+
+Can you check if we have /26 RFCs available in the fabric and work with NPL to configure on the TOR?
+
+ 
+
+If you have any questions please reach out to Ravi or Rajesh.
+
+ 
+
+Thanks,
+
+Sujana
+
+ 
+ 
+
+Hi Sujana,
+
+                  We also have information updated in the Confluence page, Here is link to it: https://confluence.prod.aws.jpmchase.net/confluence/spaces/ICPW/pages/5128078701/Implementation+Details, please do let us know if you can access this page.
+
+This is link to OCP POC Spreadsheet: ​xlsx icon OCP POC Rack Inventory.xlsx
+
+Thanks & Regards,
+
+Raviteja Reddy Gade.
+
+ 
+
+ 
+
+Hi Abhi,
+
+ 
+
+We need fabric information in CDC2 to check if there are any networks available to provide from our inventory. If not, we will need to request from NetID.
+
+ 
+
+Looks like we don’t have access to OCP POC excel.
+
+ 
+
+Thanks,
+
+Sujana
+
+ 
+
+
+ 
+
+Thank you Ravi.
+
+ 
+
+Sujana,
+
+Are you guys also looking at infra needs for IP allocation?
+
+Abhi
+
+ 
+
+
+ 
+
+Hi Abhi,
+
+Here is the link to Spreadsheet with CDC2 network details: ​xlsx icon OCP POC Rack Inventory.xlsx
+
+All the network details pointing to CDC2 rack details are in Switch Configurations Tab.
+
+Thanks & Regards,
+
+Raviteja Reddy Gade.
+
+ 
+
+ 
+
+Ravi,
+
+I didn’t see the xls for CDC2 in the MVP1 (renamed as EC1) folder on teams folder. Please share that file Sujana as soon as possible.
+
+Abhi
+
+ 
+
+Hi Rajesh/Abhi,
+
+ 
+
+Could you please provide us with the fabric details to check if there are any networks in our inventory? If not, we have to procure in NetID and configure them on TOR.
+
+ 
+
+Thanks,
+
+Sujana
+
+ 
+
+ 
+
+Team – based on the info published by Rajesh, do we have the network information that we can start conversation with NetID and start getting the API’s to request ip’s etc?
+
+https://confluence.prod.aws.jpmchase.net/confluence/spaces/ICPW/pages/5096034290/Detail+Design+EC-1#DetailDesignEC1-PhysicalLevelDesign
+
+ 
+
+Satya Ghattu (He/Him/His) | Senior Director, IP CPNS Base Compute ICP Wholesale| JPMorgan Chase & Co. | 575 Washington Blvd, Jersey City, NJ | M: 216-849-5471 satya.ghattu@jpmchase.com
+
+ 
