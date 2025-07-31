@@ -446,3 +446,292 @@ spec:
 
 """
 
+
+
+
+import os
+import yaml
+from flask import Flask, request, jsonify
+from .utils import render_vm_yaml, save_yaml_to_file, push_yaml_to_git, remove_yaml_from_git, render_vm_job_yaml
+from flask import Flask, request, jsonify
+from flasgger import Swagger
+
+app = Flask(__name__)
+swagger = Swagger(app)
+
+@app.route("/api/vm-request", methods=["POST"])
+def vm_request():
+    """
+    VM Deployment via GitLab + ArgoCD
+    ---
+    tags:
+      - VM Operations
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: vm
+        required: true
+        schema:
+          type: object
+          example:
+            vm_name: "wh-labocp-007"            
+            namespace: "gkp"
+            volume_name: "wh-labocp-007-rootdisk"
+            image_url: "http://10.14.222.30:8080/rhel-8.10-x86_64-kvm.qcow2"
+            storage_size: "120Gi"
+            status: "true"
+            cpu: 1
+            memory: "4Gi"
+            diskname: "appdisk007"
+            interface: "eth0"
+            ip: "10.14.221.137/26"
+            cloud_user: "clouduser"
+            cloud_password: "a23456"
+    responses:
+      200:
+        description: VM deployment triggered successfully
+        examples:
+          application/json: 
+            status: "VM deployment triggered"
+    """
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    required_fields = [
+        "vm_name", "namespace", "volume_name", "image_url",
+        "storage_size", "status", "cpu", "memory", "diskname", "interface", "ip", "cloud_user", "cloud_password"
+    ]
+    missing = [f for f in required_fields if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+    try:
+        
+        yaml_content = render_vm_yaml(data)
+
+        
+        filename = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{data['vm_name']}.yaml"
+        save_yaml_to_file(yaml_content, filename)
+        
+        push_yaml_to_git(filename,data["namespace"])
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"status": "accepted", "details": data}), 200
+
+@app.route("/api/vm-resize", methods=["POST"])
+def vm_resize():
+    """
+    Resize VM resources (CPU/Memory) and update YAML in GitLab via ArgoCD.
+    ---
+    tags:
+      - VM Operations
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: vm
+        required: true
+        schema:
+          type: object
+          example:
+            vm_name: "wh-labocp-007"
+            namespace: "gkp"
+            cpu: 2
+            memory: "8Gi"
+            status: "false"
+    responses:
+      200:
+        description: VM resize triggered successfully
+        examples:
+          application/json: 
+            status: "VM resize updated"
+    """
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    required_fields = ["vm_name", "namespace", "cpu", "memory", "status"]
+    missing = [f for f in required_fields if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+    vm_name = data["vm_name"]
+    namespace = data["namespace"]
+    cpu = data["cpu"]
+    memory = data["memory"]
+    status = data["status"]
+    
+    filepath = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{vm_name}.yaml"
+
+    try:
+        with open(filepath, "r") as f:
+            documents = list(yaml.safe_load_all(f))
+
+        
+        updated = False
+        for doc in documents:
+            if doc.get("kind") == "VirtualMachine" and doc.get("metadata", {}).get("name") == vm_name:
+                doc["spec"]["template"]["spec"]["domain"]["cpu"]["cores"] = cpu
+                doc["spec"]["template"]["spec"]["domain"]["resources"]["requests"]["memory"] = memory
+                doc["spec"]["running"] = status.lower() == "true"
+                updated = True
+                break
+
+        if not updated:
+            return jsonify({"error": f"VirtualMachine '{vm_name}' not found in YAML"}), 404
+
+        
+        with open(filepath, "w") as f:
+            yaml.safe_dump_all(documents, f, default_flow_style=False)
+
+        
+        push_yaml_to_git(filepath, namespace)
+
+    except FileNotFoundError:
+        return jsonify({"error": f"YAML file not found for VM '{vm_name}'"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+    try:
+        print("Before Render Testing")
+        yaml_content = render_vm_job_yaml(data)
+        job_filename = f"{vm_name}-restart.yaml"
+        print("Testing")
+        filename = os.path.join("C:\\Users\\V849212\\Documents\\vm_api_project\\data",job_filename)
+        save_yaml_to_file(yaml_content, filename)
+        
+        push_yaml_to_git(filename,namespace)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+    return jsonify({"status": "VM resize updated", "vm_name": vm_name, "cpu": cpu, "memory": memory}), 200
+
+
+
+
+
+@app.route("/api/vm-repave", methods=["POST"])
+def vm_repave():
+    """
+    VM Repave via GitLab + ArgoCD .
+    ---
+    tags:
+      - VM Operations
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: vm
+        required: true
+        schema:
+          type: object
+          example:
+            vm_name: "wh-labocp-007"
+            namespace: "gkp"
+            volume_name: "wh-labocp-007-rootdisk"
+            image_url: "http://10.14.222.30:8080/rhel-8.10-x86_64-kvm.qcow2"
+            status: "false"            
+    responses:
+      200:
+        description: VM repave triggered successfully
+        examples:
+          application/json: 
+            status: "VM repave updated"
+    """
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    required_fields = ["vm_name", "namespace", "volume_name", "image_url", "status"]
+    missing = [f for f in required_fields if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+    vm_name = data["vm_name"]
+    namespace = data["namespace"]
+    volume_name = data["volume_name"]
+    image_url = data["image_url"]
+    status = data["status"]
+    
+    filepath = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{vm_name}.yaml"
+
+    try:
+        with open(filepath, "r") as f:
+            documents = list(yaml.safe_load_all(f))
+
+        
+        updated = False
+        for doc in documents:
+            if doc.get("kind") == "VirtualMachine" and doc.get("metadata", {}).get("name") == vm_name:
+                doc["spec"]["dataVolumeTemplates"][0]["spec"]["source"]["http"]["url"] = image_url
+                doc["spec"]["dataVolumeTemplates"][0]["metadata"]["name"] = volume_name                 
+                for volume in doc["spec"]["template"]["spec"]["volumes"]:
+                    if "dataVolume" in volume and volume["name"] == "rootdisk":
+                        volume["dataVolume"]["name"] = volume_name  
+                        break                                                
+                doc["spec"]["running"] = status.lower() == "true"
+                updated = True
+                break
+
+        if not updated:
+            return jsonify({"error": f"VirtualMachine '{vm_name}' not found in YAML"}), 404
+
+        
+        with open(filepath, "w") as f:
+            yaml.safe_dump_all(documents, f, default_flow_style=False)
+
+        
+        push_yaml_to_git(filepath, namespace)
+
+    except FileNotFoundError:
+        return jsonify({"error": f"YAML file not found for VM '{vm_name}'"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"status": "VM Repave updated", "vm_name": vm_name}), 200
+
+
+@app.route("/api/vm-delete", methods=["POST"])
+def vm_delete():
+    """
+    Delete VM via GitLab + ArgoCD
+    ---
+    tags:
+      - VM Operations
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: vm
+        required: true
+        schema:
+          type: object
+          example:
+            vm_name: "wh-labocp-007"
+            namespace: "gkp"            
+    responses:
+      200:
+        description: VM deletion triggered successfully
+        examples:
+          application/json: { "status": "VM deletion triggered" }
+    """
+
+    data = request.get_json()
+    if not data or "vm_name" not in data or "namespace" not in data:
+        return jsonify({"error": "Missing vm_name or namespace"}), 400
+
+    try:
+        remove_yaml_from_git(data["vm_name"], data["namespace"])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"status": "deleted", "vm_name": data["vm_name"]}), 200
