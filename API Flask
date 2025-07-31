@@ -1,3 +1,17 @@
+vm-api-project/
+├── api/                          # Main Flask API code
+│   ├── app.py                    # Entry point for Flask
+│   ├── routes.py                 # All Flask API route handlers
+│   ├── utils.py                  # YAML generation, Git operations
+│   ├── templates/                # YAML templates (for VM and Job)
+│   └── __init__.py              # Marks api/ as a Python package
+│
+├── data/                         # Temporarily stores generated YAMLs   	
+│
+├── repo_clonenew/               # Holds GitLab cloned repository
+
+
+
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
