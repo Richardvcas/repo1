@@ -1,512 +1,280 @@
-import os
-import yaml
-from flask import Flask, request, jsonify
-from .utils import render_vm_yaml, save_yaml_to_file, push_yaml_to_git, remove_yaml_from_git, render_vm_job_yaml
-from flasgger import Swagger
+🧠 Virtual Machine Lifecycle Automation via Flask API + Argo CD
+👨‍💻 Author: Richard Xavier
+Date: [Insert date]
+Environment: Lab setup (OpenShift without internet access)
 
-app = Flask(__name__)
-swagger = Swagger(app)
+📝 Overview
+As part of the VM provisioning automation initiative, I designed and implemented a Flask-based REST API using Python, integrated with Swagger UI, GitLab, and Argo CD. This setup allows users to trigger infrastructure operations such as VM creation, resizing, repaving, and deletion directly from a browser-based interface.
 
-@app.route("/api/vm-request", methods=["POST"])
-def vm_request():
-    """
-    VM Deployment via GitLab + ArgoCD
-    ---
-    tags:
-      - VM Operations
-    consumes:
-      - application/json
-    parameters:
-      - in: body
-        name: vm
-        required: true
-        schema:
-          type: object
-          example:
-            vm_name: "wh-labocp-007"            
-            namespace: "gkp"
-            volume_name: "wh-labocp-007-rootdisk"
-            image_url: "http://10.14.222.30:8080/rhel-8.10-x86_64-kvm.qcow2"
-            storage_size: "120Gi"
-            status: "true"
-            cpu: 1
-            memory: "4Gi"
-            diskname: "appdisk007"
-            interface: "eth0"
-            ip: "10.14.221.137/26"
-            cloud_user: "clouduser"
-            cloud_password: "a23456"
-    responses:
-      200:
-        description: VM deployment triggered successfully
-        examples:
-          application/json: 
-            status: "VM deployment triggered"
-    """
-    data = request.get_json()
+🧩 Technology Stack
+Flask (Python)
 
-    if not data:
-        return jsonify({"error": "Invalid JSON"}), 400
+Swagger UI (flasgger)
 
-    required_fields = [
-        "vm_name", "namespace", "volume_name", "image_url",
-        "storage_size", "status", "cpu", "memory", "diskname", "interface", "ip", "cloud_user", "cloud_password"
-    ]
-    missing = [f for f in required_fields if f not in data]
-    if missing:
-        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+GitLab (YAML versioning)
 
-    try:
-        
-        yaml_content = render_vm_yaml(data)
+Argo CD (GitOps-based deployment)
 
-        
-        filename = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{data['vm_name']}.yaml"
-        save_yaml_to_file(yaml_content, filename)
-        
-        push_yaml_to_git(filename,data["namespace"])
+OpenShift Virtualization (KubeVirt)
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+📁 Project Structure
+The API is modular and cleanly structured:
 
-    return jsonify({"status": "accepted", "details": data}), 200
+graphql
+Copy
+Edit
+vm-api-project/
+│
+├── app.py         # Flask app entry point
+├── routes.py      # Main API routes for VM operations
+├── utils.py       # YAML rendering, Git interaction
+├── templates/     # YAML Jinja templates (VM and Job)
+└── data/          # Generated YAMLs before Git push
+🔄 How It Works
+Swagger UI is launched via Flask.
 
-@app.route("/api/vm-resize", methods=["POST"])
-def vm_resize():
-    """
-    Resize VM resources (CPU/Memory) and update YAML in GitLab via ArgoCD.
-    ---
-    tags:
-      - VM Operations
-    consumes:
-      - application/json
-    parameters:
-      - in: body
-        name: vm
-        required: true
-        schema:
-          type: object
-          example:
-            vm_name: "wh-labocp-007"
-            namespace: "gkp"
-            cpu: 2
-            memory: "8Gi"
-            status: "false"
-    responses:
-      200:
-        description: VM resize triggered successfully
-        examples:
-          application/json: 
-            status: "VM resize updated"
-    """
-    data = request.get_json()
+The user selects the operation (Pave, Resize, Repave, Delete) and provides inputs via Swagger form.
 
-    if not data:
-        return jsonify({"error": "Invalid JSON"}), 400
+The input JSON is:
 
-    required_fields = ["vm_name", "namespace", "cpu", "memory", "status"]
-    missing = [f for f in required_fields if f not in data]
-    if missing:
-        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+parsed by the Flask API
 
-    vm_name = data["vm_name"]
-    namespace = data["namespace"]
-    cpu = data["cpu"]
-    memory = data["memory"]
-    status = data["status"]
-    
-    filepath = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{vm_name}.yaml"
+converted into YAML (based on the selected operation)
 
-    try:
-        with open(filepath, "r") as f:
-            documents = list(yaml.safe_load_all(f))
+YAML is saved locally and then pushed to a GitLab repository.
 
-        
-        updated = False
-        for doc in documents:
-            if doc.get("kind") == "VirtualMachine" and doc.get("metadata", {}).get("name") == vm_name:
-                doc["spec"]["template"]["spec"]["domain"]["cpu"]["cores"] = cpu
-                doc["spec"]["template"]["spec"]["domain"]["resources"]["requests"]["memory"] = memory
-                doc["spec"]["running"] = status.lower() == "true"
-                updated = True
-                break
+Argo CD, configured in pull-based sync mode, picks up the new YAML and applies it to OpenShift.
 
-        if not updated:
-            return jsonify({"error": f"VirtualMachine '{vm_name}' not found in YAML"}), 404
+For resize operations, a restart Job YAML is also created and synced to Argo CD.
 
-        
-        with open(filepath, "w") as f:
-            yaml.safe_dump_all(documents, f, default_flow_style=False)
+✅ Use Cases Implemented
+Use Case	Description
+Pave	First-time provisioning of VM from base image with config and network setup
+Resize	Modify CPU and memory configuration of a running VM
+Repave	Replace VM disk/image with a newer base image while preserving config
+Delete	Remove the VM definition and associated volumes from GitLab and cluster
 
-        
-        push_yaml_to_git(filename,namespace)
-        
-        yaml_content = render_vm_job_yaml(data)
-        job_filename = f"{vm_name}-restart.yaml"
-        print("Testing")
-        filename = os.path.join("C:\\Users\\V849212\\Documents\\vm_api_project\\data",job_filename)
-        save_yaml_to_file(yaml_content, filename)
-        
+📷 Screenshots of Swagger UI, GitLab YAML, and Argo CD UI will be attached here
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500    
+🔧 Highlights
+Fully automated GitOps workflow using GitLab + Argo CD.
 
-        
-        push_yaml_to_git(filepath, namespace)
+Internal image used in restart jobs due to no internet access in the lab.
 
-    except FileNotFoundError:
-        return jsonify({"error": f"YAML file not found for VM '{vm_name}'"}), 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    
-    
+Jobs tagged with argocd.argoproj.io/hook: PostSync to trigger VM restart automatically post-resize.
 
+Error-handling and YAML validation implemented.
 
-    return jsonify({"status": "VM resize updated", "vm_name": vm_name, "cpu": cpu, "memory": memory}), 200
+Clean modular Python code, making the API extensible.
+
+📌 Notes
+All YAML templates were built using Python .format() / Jinja-style placeholders.
+
+The service account and image stream are customized for lab environment with no external internet.
+
+Confluence attachments include:
+
+Swagger UI sample input
+
+GitLab commit snapshot
+
+Argo CD UI in syncing state
+
+Final synced YAMLs
+
+Sample Flask logs
+
+📸 Attachments (To be Added)
+ Swagger UI Screenshot
+
+ Sample JSON Input
+
+ Generated YAML
+
+ GitLab YAML commit history
+
+ Argo CD status screen
+
+ Pod/Job logs
+
+📂 Source Code (Snippets Will Be Attached)
+You'll find these files embedded with explanation:
+
+app.py
+
+routes.py
+
+utils.py
+
+VM_YAML_TEMPLATE
+
+VM_JOB_YAML_TEMPLATE
+
+Let me know if you want a downloadable Word version or help formatting this in Confluence's page editor.
 
 
 
 
 
-@app.route("/api/vm-repave", methods=["POST"])
-def vm_repave():
-    """
-    VM Repave via GitLab + ArgoCD .
-    ---
-    tags:
-      - VM Operations
-    consumes:
-      - application/json
-    parameters:
-      - in: body
-        name: vm
-        required: true
-        schema:
-          type: object
-          example:
-            vm_name: "wh-labocp-007"
-            namespace: "gkp"
-            volume_name: "wh-labocp-007-rootdisk"
-            image_url: "http://10.14.222.30:8080/rhel-8.10-x86_64-kvm.qcow2"
-            status: "false"            
-    responses:
-      200:
-        description: VM repave triggered successfully
-        examples:
-          application/json: 
-            status: "VM repave updated"
-    """
-    data = request.get_json()
-
-    if not data:
-        return jsonify({"error": "Invalid JSON"}), 400
-
-    required_fields = ["vm_name", "namespace", "volume_name", "image_url", "status"]
-    missing = [f for f in required_fields if f not in data]
-    if missing:
-        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
-
-    vm_name = data["vm_name"]
-    namespace = data["namespace"]
-    volume_name = data["volume_name"]
-    image_url = data["image_url"]
-    status = data["status"]
-    
-    filepath = f"C:\\Users\\V849212\\Documents\\vm_api_project\\data\\{vm_name}.yaml"
-
-    try:
-        with open(filepath, "r") as f:
-            documents = list(yaml.safe_load_all(f))
-
-        
-        updated = False
-        for doc in documents:
-            if doc.get("kind") == "VirtualMachine" and doc.get("metadata", {}).get("name") == vm_name:
-                doc["spec"]["dataVolumeTemplates"][0]["spec"]["source"]["http"]["url"] = image_url
-                doc["spec"]["dataVolumeTemplates"][0]["metadata"]["name"] = volume_name                 
-                for volume in doc["spec"]["template"]["spec"]["volumes"]:
-                    if "dataVolume" in volume and volume["name"] == "rootdisk":
-                        volume["dataVolume"]["name"] = volume_name  
-                        break                                                
-                doc["spec"]["running"] = status.lower() == "true"
-                updated = True
-                break
-
-        if not updated:
-            return jsonify({"error": f"VirtualMachine '{vm_name}' not found in YAML"}), 404
-
-        
-        with open(filepath, "w") as f:
-            yaml.safe_dump_all(documents, f, default_flow_style=False)
-
-        
-        push_yaml_to_git(filepath, namespace)
-
-    except FileNotFoundError:
-        return jsonify({"error": f"YAML file not found for VM '{vm_name}'"}), 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-    return jsonify({"status": "VM Repave updated", "vm_name": vm_name}), 200
 
 
-@app.route("/api/vm-delete", methods=["POST"])
-def vm_delete():
-    """
-    Delete VM via GitLab + ArgoCD
-    ---
-    tags:
-      - VM Operations
-    consumes:
-      - application/json
-    parameters:
-      - in: body
-        name: vm
-        required: true
-        schema:
-          type: object
-          example:
-            vm_name: "wh-labocp-007"
-            namespace: "gkp"            
-    responses:
-      200:
-        description: VM deletion triggered successfully
-        examples:
-          application/json: { "status": "VM deletion triggered" }
-    """
 
-    data = request.get_json()
-    if not data or "vm_name" not in data or "namespace" not in data:
-        return jsonify({"error": "Missing vm_name or namespace"}), 400
-
-    try:
-        remove_yaml_from_git(data["vm_name"], data["namespace"])
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-    return jsonify({"status": "deleted", "vm_name": data["vm_name"]}), 200
-
-------------------------------------
-VM_YAML_TEMPLATE = """\
-apiVersion: v1
-kind: Secret
-metadata:
-  name: richard-secret
-  namespace: {namespace}
-type: Opaque
-stringData:
-  userdata: |
-    #cloud-config
-    runcmd:
-      - 'set -x'
-      - 'sed -i "/# source INSTALL_CLASS/i generate_fbenv" /usr/local/bin/fb-init.sh'
-      - 'cat /etc/INSTALL_CLASS.new >> /etc/INSTALL_CLASS'
-      - '[[ `/usr/bin/cloud-id` == "nocloud" ]] && [[ -f "/usr/local/bin/fb-init.sh" ]] && /usr/local/bin/fb-init.sh'
-      - 'jpmc-dnf-config configure --get-content-hostname > /tmp/jpmc-dnf-config-original-content-hostname'
-      - 'jpmc-dnf-config configure --set-content-hostname=repomirror-lab.jpmchase.net'
-      - "for host in `curl https://repomirror-lab.jpmchase.net/pulp/content/dnf/sources/lrh9/baseos-x86_64.mirrorlist | awk -F/ '{{print $3}}'`; do echo 10.240.47.188 $host >> /etc/hosts;done"
-      - 'pgrep dnsmasq && kill -HUP $(pgrep dnsmasq)'
-      - 'yum install -y sudo'
-    ssh_pwauth: true
-    users:
-      - name: root
-        passwd: Welcome1Welcome1
-      - name: richard
-        gecos: richard
-        sudo: ["ALL=(ALL) NOPASSWD:ALL"]
-        ssh-authorized-keys:
-          - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCpNWrUAIgoaWVvfZio3TSh1fiiNBpyy9IcZeQf0GdjijrtKYbEDubUvtFMLBt9XPeWW9U/yymT817B38eUvQPcMhMFpdoeEXdwVPbFUbvDSR1Ft2kU2L4aTQbVFEBnpfNJT4+QnFN306c0EvUnN+cqeuVFdhSKaZ7ERRZ6EgFPeQw2D54lEok7JR/PNK+t2lIgjK5cM0pLNlBcjs8j1JKV8U4urBxRQkM0HWC0msUK/Bx8+f7olIUJ0z0Z0P9GaAkSKM/rMfxgA1WhlH/B6lNCi3WqJ/GueuU/8X8XFOdXccKA0u6Ma4kEC1JY8mDFOiOEFoI5TCJLjtJZ+b9W934bE/ElT6Z5verA3kFi7Y95FG6VUlJyu6/BnKDbDnWbXqOgKjxKX7qIDKRol0fS0jiR7se1qIKfXgW5fAEtG0dZAhwydyLV1O/YmKqmPQ58uklvmyD/vEBIBAHVuFGsed30KZTkoGtljFYoHN9YSMpPUDDWpwOCBC4MGO5jyynQ1q8= richard@GIEGTIVL07646
-    write_files:
-      - path: /etc/INSTALL_CLASS.new
-        content: |
-          KSfbuser="root"
-          KSfbhostname="{vm_name}.wh2.lab.jpmchase.net"
-          KSfbfqdn="true"
-          KSfbip="10.14.21.134"
-          KSfbnetmask="255.255.255.192"
-          KSfbgateway="10.14.221.129"
-          KSfbdnsns="10.240.47.3 10.240.41.3"
-          KSfbdnssearch="wh2.lab.jpmchase.net"
-          KSlob="GTI"
-          KSregion="Brooklyn"
-          KSsite="lab1"
-          KSnwzone="lab"
-          timezone="UTC"
-          supportTeam="GDEALINUX"
-          KSicpenv="prod"
-          KSenv="dev"
-          KSautomation="icpw"
-          KSgredl="00057"
-          supportTeam="GSO SRVR UNIX"
-          icp_boot_config="false"
-          icp_boot_config_icp_puppet="true"
-          icp_boot_config_icp_puppet_build_script="puppet_run.rb"
-          icp_boot_config_icp_evolven="true"
-          icp_boot_config_icp_powerbroker="true"
-          icp_boot_config_icp_tivoli_itm6="true"
-          icp_boot_config_icp_aim="true"
-          icp_boot_config_icp_fluentd="true"
-          KScohesity="auto"
-          icp_boot_config_icp_crowdstrike="true"
-          icp_boot_config_icp_cida="true"
-          icp_boot_config_icp_cida_node_type="standard"
-          icp_boot_config_icp_cida_template="ucm_auth_security_cida"
-          icp_boot_config_icp_cida_addomain="exchadlab.gielab.jpmchase.net"
-          epv_require_onboarding="false"
-          epv_repave="true"
-          epv_accountType="Shared Interactive"
-          epv_platform="UnixStandalone - Sophia - Root"
-          epv_accountName="root"
-          epv_region="Global"
-          epv_subRegion="Global"
-          epv_networkLocation="LAN"
-          epv_neimId="G024162"
-          epv_locationId="00057"
-          epv_accessGroupName=""
-          sealId="28954"
-          icp_boot_config_remove_root_pub_keys="true"
-    hostname: {vm_name}
-    fqdn: {vm_name}.wh2.lab.jpmchase.net
-    manage_etc_hosts: true
-
----
-
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {diskname}
-  namespace: {namespace}
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
-  storageClassName: ocs-storagecluster-ceph-rbd-virtualization
-
----  
+Ask ChatGPT
+You said:
+this ok. little more elaborate i will to make long page
 
 
-apiVersion: kubevirt.io/v1
-kind: VirtualMachine
-metadata:
-  labels:
-    kubevirt.io/vm: {vm_name}
-  name: {vm_name}
-spec:
-  dataVolumeTemplates:
-  - metadata:
-      name: {volume_name}
-    spec:
-      storage:
-        resources:
-          requests:
-            storage: {storage_size}
-        # storageClassName: ocs-storagecluster-ceph-rbd
-        storageClassName: ocs-storagecluster-ceph-rbd-virtualization
-      source:
-        http:
-          url: {image_url}
-            #registry:
-            #url: docker://fred31420.gielab.jpmchase.net:8443/jpmc/ovlt_rhel_9:9.6.1_2025-07-09-100051
-            #secretRef: fred31420-data-source-secret
-            #certConfigMap: fred31420-tls-certs    
-  running: {status}
-  template:
-    metadata:
-      labels:
-        kubevirt.io/vm: {vm_name}
-    spec:
-      domain:
-        firmware:
-          bootloader:
-            efi:
-              secureBoot: false
-        devices:
-          interfaces:
-            - name: {interface}
-              bridge: {{}}
-          disks:
-          - disk:
-              bus: virtio
-            name: rootdisk
-          - disk:
-              bus: virtio
-            name: appdisk  
-          - disk:
-              bus: virtio
-            name: cloudinitdisk
-        machine:
-          type: ""
-        cpu:
-          cores: {cpu}
-        resources:
-          requests:
-            memory: {memory}
-      terminationGracePeriodSeconds: 180
-      networks:
-        - name: {interface}
-          multus:
-            networkName: default/vlan3702
-      volumes:
-      - dataVolume:
-          name: {volume_name}
-        name: rootdisk     
-      - name: appdisk
-        persistentVolumeClaim:
-         claimName: {diskname}          
-      - name: cloudinitdisk
-        cloudInitNoCloud:
-          secretRef:
-            name: richard-secret 
-          networkData: |
-            version: 2
-            ethernets:
-              eth0:
-                dhcp4: false
-                addresses:
-                  - {ip}
-                gateway4: 10.14.221.129
-                nameservers:
-                  addresses:
-                    - 10.240.47.3
-                    - 10.240.41.3
+ChatGPT said:
+Updated saved memory
+Perfect! Here's a more elaborate version of the Confluence page content — detailed enough to span a full page and suitable for internal documentation or technical sharing.
+
+🧠 Virtual Machine Lifecycle Automation Using Flask API + GitLab + Argo CD
+👨‍💻 Author: Richard Xavier
+Duration: Last 2 Weeks
+Environment: Internal OpenShift Lab (No Internet Access)
+Tools Used: Python (Flask), GitLab, Argo CD, OpenShift Virtualization
+
+📌 Objective
+The primary goal of this project was to automate the lifecycle operations of OpenShift Virtual Machines using a RESTful interface. Users should be able to:
+
+Trigger VM-related actions using a browser
+
+Generate and store YAML definitions in GitLab
+
+Leverage Argo CD to apply the changes in the OpenShift cluster automatically
+
+This approach removes manual YAML handling and enables a GitOps-based VM provisioning and management workflow.
+
+🧩 Tech Stack Breakdown
+Component	Purpose
+Flask	Lightweight Python web framework used to host the API
+Swagger (Flasgger)	Provides a visual interface for users to input VM details
+GitLab	Stores YAMLs under version control (manifests managed per namespace)
+Argo CD	Syncs YAMLs from GitLab to OpenShift using GitOps
+OpenShift Virtualization (KubeVirt)	Platform where the VMs are provisioned and managed
+
+🔧 Project Structure
+The entire solution is built using modular Python files:
+
+graphql
+Copy
+Edit
+vm-api-project/
+├── app.py          # Entry point for Flask
+├── routes.py       # All Flask API route handlers
+├── utils.py        # YAML generation, Git operations
+├── templates/      # YAML templates (for VM and Job)
+└── data/           # Temporarily stores generated YAMLs
+🌐 How It Works (End-to-End Flow)
+Launch Flask App: The API runs locally using Flask with Swagger integrated.
+
+User Input via Swagger: Users interact through Swagger UI to fill in VM details (CPU, Memory, Disk, Image URL, etc.).
+
+JSON ➝ YAML Conversion:
+
+The Python backend converts input JSON into valid Kubernetes YAML (VM definition or Job).
+
+This uses pre-defined templates with placeholders ({vm_name}, {memory}, etc.).
+
+Save YAML to Disk: YAML files are temporarily saved in a local folder (data/).
+
+Push to GitLab: The API automatically pushes the YAML to the appropriate GitLab repo folder (gkp/, gos/, etc.).
+
+Argo CD Auto-Sync:
+
+Argo CD, configured with the Git repo, picks up any YAML changes.
+
+VM gets created or updated accordingly in the OpenShift cluster.
+
+✅ Implemented Use Cases
+Each use case is implemented as a separate API endpoint that follows the above flow:
+
+1. 🟢 Pave (Provision a new VM)
+Generates a complete VM YAML with boot config, disks, cloud-init secret, and network.
+
+Triggered from /api/vm-request.
+
+2. 🟡 Resize
+Accepts CPU and Memory updates.
+
+Modifies existing YAML and generates an additional restart Job YAML.
+
+Job uses a PostSync Argo CD hook to restart the VM after resize.
+
+3. 🔁 Repave
+Replaces the image URL in the existing VM YAML (new OS or base version).
+
+Also updates the root disk reference in volumes and dataVolumeTemplates.
+
+4. 🗑️ Delete
+Deletes the YAML file from GitLab via API and triggers removal in the cluster via Argo CD sync.
+
+🔄 VM Restart (Hook-Based Job YAML)
+A Kubernetes Job is generated with the following characteristics:
+
+Uses openshift/cli image
+
+Contains a simple Bash script:
+
+bash
+Copy
+Edit
+oc patch vm <name> -n <namespace> --type=merge -p '{"spec":{"running":false}}'
+sleep 15
+oc patch vm <name> -n <namespace> --type=merge -p '{"spec":{"running":true}}'
+Annotated with:
+
+yaml
+Copy
+Edit
+argocd.argoproj.io/hook: PostSync
+argocd.argoproj.io/hook-delete-policy: HookSucceeded
+This ensures the Job only runs after Argo CD finishes syncing the updated VM spec.
+
+🖼️ Screenshots (To Be Attached)
+ Swagger UI showing input form
+
+ GitLab commit with YAML
+
+ Argo CD application panel
+
+ Job status from OpenShift
+
+ VM creation logs
+
+📜 Sample APIs
+Endpoint	Function
+POST /api/vm-request	Create new VM
+POST /api/vm-resize	Resize CPU/Memory
+POST /api/vm-repave	Update image URL
+POST /api/vm-delete	Remove VM YAML
+
+All inputs are provided via Swagger form, and results are automatically pushed to GitLab and synced by Argo CD.
+
+💡 Key Learnings
+Argo CD PostSync hooks help automate reboots without manual intervention.
+
+Restart jobs require service account permissions and image stream access in restricted environments.
+
+Without internet access, internal OpenShift image streams must be used.
+
+📁 Next Steps
+Add role-based access to restrict who can trigger which operations.
+
+Add more advanced post-processing logs or monitoring integration.
+
+Explore using Tekton for job chaining in future.
+
+🧠 Conclusion
+This implementation has greatly simplified VM lifecycle operations. All the tasks that previously required manual YAML edits and oc apply commands can now be done through an easy-to-use Swagger interface backed by GitOps.
+
+This project is a solid foundation for infrastructure automation in air-gapped OpenShift environments.
+
+Let me know if you want this as a Word or Markdown export for copy-paste into Confluence, or need help formatting the screenshots/codes inline in the page.
 
 
 
 
 
-"""
 
-VM_JOB_YAML_TEMPLATE = """\
-
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: restart-{{ vm_name }}
-  namespace: {{ namespace }}
-  annotations:
-    argocd.argoproj.io/hook: PostSync
-    argocd.argoproj.io/hook-delete-policy: HookSucceeded
-spec:
-  template:
-    spec:
-      serviceAccountName: vm-automation-sa
-      containers:
-        - name: restart-vm
-          image: quay.io/openshift/origin-cli:4.12
-          command:
-            - /bin/bash
-            - -c
-            - |
-              echo "Stopping VM..."
-              oc patch vm {{ vm_name }} -n {{ namespace }} --type=merge -p '{"spec":{"running":false}}'
-              sleep 15
-              echo "Starting VM..."
-              oc patch vm {{ vm_name }} -n {{ namespace }} --type=merge -p '{"spec":{"running":true}}'
-      restartPolicy: Never
-
-      
-
-"""
 
