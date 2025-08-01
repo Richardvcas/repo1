@@ -1,3 +1,6 @@
+https://netid-dev.jpmchase.net/netid/v1.1/reservation?subnet=168.134.50.0
+
+
 Implemented Use Cases (API Endpoints)
 Each operation is implemented as a standalone API endpoint with end-to-end GitOps automation.
 
